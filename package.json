@@ -1,7 +1,8 @@
 {
   "name": "Ex_Files_Master_React_19",
   "scripts": {
-    "dev": "vite"
+    "dev": "vite",
+    "build": "vite build"
   },
   "dependencies": {
     "lucide-react": "^0.473.0",

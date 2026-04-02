@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: amigo-rentals
+    env: node
+    plan: free
+    branch: main
+    buildCommand: npm ci && npm run build
+    startCommand: npx serve -s dist -l $PORT
+    autoDeploy: true
