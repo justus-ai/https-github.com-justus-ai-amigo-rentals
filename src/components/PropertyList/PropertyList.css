@@ -1,0 +1,10 @@
+.property-list {
+  padding: 1.25rem;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  text-align: center;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 1.25rem;
+}

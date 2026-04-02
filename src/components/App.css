@@ -1,0 +1,46 @@
+/* App.css - global styles for components */
+html,
+body,
+#root {
+    min-height: 100%;
+}
+
+html {
+    font-size: 16px;
+}
+
+body {
+    margin: 0;
+}
+
+.app {
+    padding-top: 4rem;
+    min-height: 100svh;
+    display: flex;
+    flex-direction: column;
+}
+
+.app-main {
+    flex: 1;
+    padding-bottom: 12rem;
+}
+
+@media (max-width: 800px) {
+    .app {
+        padding-top: 12rem;
+    }
+
+    .app-main {
+        padding-bottom: 14rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .app {
+        padding-top: 14rem;
+    }
+
+    .app-main {
+        padding-bottom: 12rem;
+    }
+}

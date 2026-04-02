@@ -1,0 +1,14 @@
+.property-type-label {
+  display: inline-block;
+  position: absolute;
+  top: 0.5rem;
+  left: 0.5rem;
+  z-index: 2;
+  background-color: #19d241;
+  color: #fff;
+  padding: 0.3rem 0.6rem;
+  border-radius: 0.3rem;
+  font-size: 0.95rem;
+  font-weight: bolder;
+  text-transform: uppercase;
+}

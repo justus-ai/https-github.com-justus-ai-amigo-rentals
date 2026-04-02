@@ -1,0 +1,21 @@
+.property-attribute {
+  padding: 6px 12px;
+  margin: 4px 0;
+  background: #e0e0e0;
+  border-radius: 4px;
+  display: inline-block;
+  font-size: 1rem;
+}
+
+.property-attribute-label {
+  color: #333;
+}
+
+.property-attribute-value {
+  color: #222;
+}
+
+.property-attribute-value.is-emphasized {
+  color: #22c55e;
+  font-weight: 700;
+}

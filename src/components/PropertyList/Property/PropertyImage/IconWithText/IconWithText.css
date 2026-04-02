@@ -1,0 +1,32 @@
+.icon-with-text {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.icon-with-text .icon {
+  color: #1976d2;
+}
+
+.icon-text {
+  font-size: 0.95rem;
+  color: #555;
+}
+
+.icon-with-text.overlay {
+  gap: 0.3rem;
+  margin-top: 0;
+  padding: 0.2rem 0.45rem;
+  border-radius: 0.45rem;
+  background: rgba(0, 0, 0, 0.55);
+}
+
+.icon-with-text.overlay .icon {
+  color: #fff;
+}
+
+.icon-with-text.overlay .icon-text {
+  color: #fff;
+  font-size: 0.8rem;
+}
