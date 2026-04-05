@@ -18,8 +18,9 @@
   margin: 0 auto;
   padding: 1.25rem 1rem;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: 1fr;
   gap: 1.5rem;
+  text-align: center;
 }
 
 .footer h3,
@@ -41,20 +42,12 @@
   animation: spinIcon 3s linear infinite;
 }
 
-.footer-links {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-
-.footer-links a,
 .socials a {
   color: #cbd5e1;
   text-decoration: none;
   transition: color 0.2s ease, transform 0.2s ease;
 }
 
-.footer-links a:hover,
 .socials a:hover {
   color: #22c55e;
   transform: translateY(-1px);
@@ -73,19 +66,12 @@
   margin-top: 0.7rem;
   display: flex;
   gap: 0.7rem;
-}
-
-.footer-bottom {
-  border-top: 1px solid rgba(255, 255, 255, 0.12);
-  text-align: center;
-  padding: 0.8rem 1rem;
-  font-size: 0.9rem;
-  color: #94a3b8;
+  justify-content: center;
 }
 
 @media (max-width: 800px) {
   .footer-inner {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: 1fr;
     gap: 0.9rem;
     padding: 0.9rem 0.8rem;
   }
@@ -104,11 +90,6 @@
   .socials {
     margin-top: 0.5rem;
     gap: 0.5rem;
-  }
-
-  .footer-bottom {
-    padding: 0.55rem 0.75rem;
-    font-size: 0.8rem;
   }
 }
 
