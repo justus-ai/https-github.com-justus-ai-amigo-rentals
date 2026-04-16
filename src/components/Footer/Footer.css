@@ -32,6 +32,7 @@
 .footer p {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 0.45rem;
   margin: 0.35rem 0;
   color: #cbd5e1;
