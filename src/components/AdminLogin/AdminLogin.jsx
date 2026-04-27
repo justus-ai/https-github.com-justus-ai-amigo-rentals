@@ -19,7 +19,7 @@ const AdminLogin = ({ onLogin, onCancel }) => {
   return (
     <section className='admin-login'>
       <div className='admin-login-card'>
-        <h2>Super User Login</h2>
+        <h2>Admin Login</h2>
         <p>Sign in with an admin account to manage website content.</p>
 
         <form onSubmit={handleSubmit} className='admin-login-form'>

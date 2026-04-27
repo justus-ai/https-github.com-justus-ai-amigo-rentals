@@ -30,7 +30,7 @@ const Header = ({
             ? 'Back to Listings'
             : isAuthenticated
               ? 'Open Admin'
-              : 'Super User Login'}
+              : 'Admin Login'}
         </button>
       </div>
     </header>
