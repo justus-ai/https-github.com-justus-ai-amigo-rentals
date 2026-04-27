@@ -1,0 +1,65 @@
+.admin-login {
+  display: grid;
+  place-items: center;
+  padding: 2rem 1rem;
+}
+
+.admin-login-card {
+  width: min(28rem, 100%);
+  background: #ffffff;
+  border: 1px solid #d1d5db;
+  border-radius: 0.75rem;
+  padding: 1.25rem;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+}
+
+.admin-login-card h2 {
+  margin: 0 0 0.5rem;
+}
+
+.admin-login-card p {
+  margin: 0 0 1rem;
+  color: #4b5563;
+}
+
+.admin-login-form {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.admin-login-form label {
+  font-weight: 600;
+}
+
+.admin-login-form input {
+  border: 1px solid #9ca3af;
+  border-radius: 0.5rem;
+  padding: 0.55rem 0.7rem;
+  font-size: 1rem;
+}
+
+.admin-login-error {
+  margin: 0;
+  color: #b91c1c;
+  font-weight: 600;
+}
+
+.admin-login-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.admin-login-actions button {
+  border: none;
+  border-radius: 0.5rem;
+  padding: 0.6rem 0.9rem;
+  cursor: pointer;
+  background: #111827;
+  color: #ffffff;
+}
+
+.admin-login-actions .secondary {
+  background: #e5e7eb;
+  color: #111827;
+}
