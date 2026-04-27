@@ -8,7 +8,7 @@ const properties = [
     bedrooms: 2,
     bathrooms: 1,
     area: 85,
-    image: "/images/blueapartment1.jpg",
+    image: "https://amigo-rentals-images.s3.amazonaws.com/blueapartment1.jpg",
     description: "A beautiful modern apartment in the city center."
   },
   {
@@ -20,7 +20,7 @@ const properties = [
     bedrooms: 3,
     bathrooms: 2,
     area: 110,
-    image: "/images/cottage1.jpg",
+    image: "https://amigo-rentals-images.s3.amazonaws.com/cottage1.jpg",
     description: "A cozy cottage with a garden."
   },
   {
@@ -33,7 +33,7 @@ const properties = [
     bathrooms: 4,
     area: 320,
     available: false,
-    image: "/images/brownapartment3.jpg",
+    image: "https://amigo-rentals-images.s3.amazonaws.com/brownapartment3.jpg",
     description: "A luxurious villa with a private pool and ocean view."
   },
   {
@@ -45,7 +45,7 @@ const properties = [
     bedrooms: 2,
     bathrooms: 2,
     area: 95,
-    image: "/images/greyapartment2.jpg",
+    image: "https://amigo-rentals-images.s3.amazonaws.com/greyapartment2.jpg",
     description: "A stylish loft in the heart of the city."
   },
   {
@@ -57,7 +57,7 @@ const properties = [
     bedrooms: 3,
     bathrooms: 2,
     area: 140,
-    image: "/images/cottage2.jpg",
+    image: "https://amigo-rentals-images.s3.amazonaws.com/cottage2.jpg",
     description: "A spacious house in a quiet neighborhood."
   },
   {
@@ -69,7 +69,7 @@ const properties = [
     bedrooms: 4,
     bathrooms: 3,
     area: 210,
-    image: "/images/cottage3.jpg",
+    image: "https://amigo-rentals-images.s3.amazonaws.com/cottage3.jpg",
     description: "A modern cottage with stunning city views."
   },
   {
@@ -81,7 +81,7 @@ const properties = [
     bedrooms: 3,
     bathrooms: 2,
     area: 160,
-    image: "/images/redhouse.jpg",
+    image: "https://amigo-rentals-images.s3.amazonaws.com/redhouse.jpg",
     description: "A charming farmhouse surrounded by nature."
   },
   {
@@ -93,7 +93,7 @@ const properties = [
     bedrooms: 2,
     bathrooms: 1,
     area: 100,
-    image: "/images/whitehouse.jpg",
+    image: "https://amigo-rentals-images.s3.amazonaws.com/whitehouse.jpg",
     description: "A compact house perfect for singles."
   },
   {
@@ -105,7 +105,7 @@ const properties = [
     bedrooms: 3,
     bathrooms: 2,
     area: 130,
-    image: "/images/bungalowhouse.jpg",
+    image: "https://amigo-rentals-images.s3.amazonaws.com/bungalowhouse.jpg",
     description: "A cozy bungalow just steps from the beach."
   }
 ];

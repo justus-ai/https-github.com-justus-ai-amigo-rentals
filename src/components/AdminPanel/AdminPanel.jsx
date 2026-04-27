@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import S3ImageUploader from './S3ImageUploader';
 import './AdminPanel.css';
 
 const EMPTY_PROPERTY = {
@@ -215,8 +216,14 @@ const AdminPanel = ({
                 <input type='number' value={form.area} onChange={(event) => handleChange('area', event.target.value)} />
               </label>
               <label>
-                Image Path
-                <input value={form.image} onChange={(event) => handleChange('image', event.target.value)} />
+                Image
+                <S3ImageUploader onUpload={(url) => handleChange('image', url)} />
+                {form.image && (
+                  <div style={{ marginTop: 8 }}>
+                    <img src={form.image} alt="Preview" style={{ maxWidth: 200, maxHeight: 120, border: '1px solid #ccc' }} />
+                    <div style={{ fontSize: 12, color: '#555' }}>{form.image}</div>
+                  </div>
+                )}
               </label>
               <label className='checkbox-row'>
                 <input
