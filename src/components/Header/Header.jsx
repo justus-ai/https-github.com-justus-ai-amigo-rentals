@@ -13,9 +13,9 @@ const Header = ({
   return (
     <header className="header">
       <div className='item brand'>
-        <img src="/images/amigonrentalslogo.png" alt="Amigo Rentals Logo" className="logo-img" />
-        <House className='icon' />
-        <span>{brandName}</span>
+           <img src="/images/amigonrentalslogo.png" alt="Amigo Rentals Logo" className="logo-img-full" />
+           {/* <House className='icon' /> */}
+           {/* <span>{brandName}</span> */}
       </div>
       <div className='item'>
         <Phone className='icon' />

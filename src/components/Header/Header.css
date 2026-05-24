@@ -9,6 +9,18 @@ header {
     top: 0;
     left: 0;
     right: 0;
+.logo-img-full {
+    width: 100%;
+    max-width: 100%;
+    height: 64px;
+    object-fit: contain;
+    display: block;
+    margin: 0 auto;
+    background: white;
+    border-radius: 6px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    transition: height 0.2s, max-width 0.2s;
+}
     z-index: 10;
 }
 .item .icon {
@@ -16,14 +28,26 @@ header {
     margin-right: 8px;
     flex-shrink: 0;
 
+        .logo-img-full {
+            height: 48px;
+            max-width: 100%;
+            margin: 0 auto 10px auto;
+            display: block;
+        }
 }
 .logo-img {
-    height: 40px;
+    height: 60px;
     width: auto;
-    max-width: 120px;
-    margin-right: 12px;
+    max-width: 180px;
+    margin-right: 16px;
     border-radius: 6px;
     background: white;
+        .logo-img-full {
+            height: 36px;
+            max-width: 100%;
+            margin: 0 auto 8px auto;
+            display: block;
+        }
     object-fit: contain;
     box-shadow: 0 2px 8px rgba(0,0,0,0.08);
     transition: height 0.2s, max-width 0.2s;
@@ -79,12 +103,12 @@ header {
     .admin-item {
         justify-content: center;
     }
-    .logo-img {
-      height: 32px;
-      max-width: 90px;
-      margin: 0 auto 8px auto;
-      display: block;
-    }
+        .logo-img {
+            height: 48px;
+            max-width: 120px;
+            margin: 0 auto 10px auto;
+            display: block;
+        }
 }
 
 @media (max-width: 480px) {
@@ -99,10 +123,10 @@ header {
     .item span {
         font-size: 0.9rem;
     }
-    .logo-img {
-      height: 24px;
-      max-width: 60px;
-      margin: 0 auto 6px auto;
-      display: block;
-    }
+        .logo-img {
+            height: 36px;
+            max-width: 90px;
+            margin: 0 auto 8px auto;
+            display: block;
+        }
 }
