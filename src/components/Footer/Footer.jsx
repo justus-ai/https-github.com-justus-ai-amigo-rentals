@@ -9,7 +9,7 @@ const Footer = () => {
 
       <div className='footer-inner'>
         <div>
-          <h3>Amigon Rentals</h3>
+          <h3>Amigo Rentals</h3>
           <p>Find your next home with confidence and comfort.</p>
           <p>Open 24 Hours</p>
 
