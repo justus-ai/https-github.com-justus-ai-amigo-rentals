@@ -1,3 +1,8 @@
+.highlight-property {
+  outline: 3px solid #2CDEB6;
+  box-shadow: 0 0 0 6px #2cdeb633;
+  transition: outline 0.2s, box-shadow 0.2s;
+}
 .property {
   border: 1px solid #aaa;
   border-radius: 6px;

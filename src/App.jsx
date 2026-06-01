@@ -204,6 +204,16 @@ const App = () => {
         isAuthenticated={isAuthenticated}
         isAdminMode={isAdminMode}
         onToggleAdmin={() => setIsAdminMode((previous) => !previous)}
+        properties={properties}
+        onPropertySelect={(property) => {
+          // Scroll to property card or filter, for now just highlight
+          const el = document.getElementById(`property-${property.id}`);
+          if (el) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            el.classList.add('highlight-property');
+            setTimeout(() => el.classList.remove('highlight-property'), 2000);
+          }
+        }}
       />
       <Title title={siteContent.pageTitle} />
       <main className='app-main'>

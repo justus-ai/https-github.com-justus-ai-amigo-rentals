@@ -14,7 +14,7 @@ body {
 }
 
 .app {
-    padding-top: 4rem;
+    padding-top: 9rem;
     min-height: 100svh;
     display: flex;
     flex-direction: column;

@@ -18,20 +18,24 @@ const Property = ({
   bathrooms = 2,
   area = 120,
   available = true,
+  id,
 }) => {
   return (
-    <div className='property-card'
-     style={{ opacity: !available ? 0.5 : 1 }}>
-    <PropertyImage image={image}>
-      <PropertyTypeLabel type={type} />
-      {!available && <PropertyBanner text='Occupied' />}
-      <div className='property-image-meta'>
-        <IconWithText icon={Bed} text={`${bedrooms} Beds`} className='overlay' />
-        <IconWithText icon={Bath} text={`${bathrooms} Baths`} className='overlay' />
-        <IconWithText icon={Maximize} text={`${area} m2`} className='overlay' />
-      </div>
+    <div
+      className='property-card'
+      id={`property-${id}`}
+      style={{ opacity: !available ? 0.5 : 1 }}
+    >
+      <PropertyImage image={image}>
+        <PropertyTypeLabel type={type} />
+        {!available && <PropertyBanner text='Occupied' />}
+        <div className='property-image-meta'>
+          <IconWithText icon={Bed} text={`${bedrooms} Beds`} className='overlay' />
+          <IconWithText icon={Bath} text={`${bathrooms} Baths`} className='overlay' />
+          <IconWithText icon={Maximize} text={`${area} m2`} className='overlay' />
+        </div>
       </PropertyImage>
-   
+
       <div className='property-details'>
         <h3>{title}</h3>
         <p>{location}</p>
