@@ -237,6 +237,31 @@ const mailTransport = isSmtpConfigured
     })
   : null;
 
+const readMissingEnv = (keys) => keys.filter((key) => !String(process.env[key] || '').trim());
+
+const preflightSections = {
+  core: ['PORT', 'APP_BASE_URL', 'CORS_ORIGINS'],
+  stripe: ['STRIPE_SECRET_KEY', 'VITE_STRIPE_PUBLISHABLE_KEY', 'STRIPE_WEBHOOK_SECRET'],
+  mpesa: ['MPESA_CONSUMER_KEY', 'MPESA_CONSUMER_SECRET', 'MPESA_SHORTCODE', 'MPESA_PASSKEY', 'MPESA_CALLBACK_URL'],
+  smtp: ['SMTP_HOST', 'SMTP_PORT', 'SMTP_USER', 'SMTP_PASS', 'SMTP_FROM', 'SUPPORT_NOTIFICATION_EMAIL'],
+};
+
+const preflightReport = Object.fromEntries(
+  Object.entries(preflightSections).map(([name, keys]) => [name, readMissingEnv(keys)])
+);
+
+const hasCriticalMissing = preflightReport.core.length > 0;
+const hasAnyMissing = Object.values(preflightReport).some((values) => values.length > 0);
+
+if (hasAnyMissing) {
+  console.warn('Configuration preflight report:', preflightReport);
+}
+
+if (process.env.NODE_ENV === 'production' && hasCriticalMissing) {
+  console.error('Missing critical production environment values:', preflightReport.core.join(', '));
+  process.exit(1);
+}
+
 const sanitizeFilename = (value) => String(value || '').replace(/[^a-zA-Z0-9._-]/g, '_');
 const asNumber = (value, fallback = 0) => {
   const parsed = Number(value);
@@ -510,6 +535,27 @@ const requireSuperAdmin = (req, res, next) => {
 
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok' });
+});
+
+app.get('/ready', (_req, res) => {
+  let dbOk = true;
+  try {
+    db.prepare('SELECT 1 AS ok').get();
+  } catch {
+    dbOk = false;
+  }
+
+  const ready = dbOk && !hasCriticalMissing;
+  res.status(ready ? 200 : 503).json({
+    status: ready ? 'ready' : 'not_ready',
+    dbOk,
+    missingCoreEnv: preflightReport.core,
+    providers: {
+      stripeEnabled: Boolean(stripeClient && stripePublishableKey),
+      mpesaEnabled: isMpesaConfigured,
+      smtpEnabled: isSmtpConfigured,
+    },
+  });
 });
 
 app.get('/api/properties', (_req, res) => {
