@@ -1,8 +1,15 @@
 import React, { useRef } from 'react';
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (import.meta.env.DEV ? 'http://localhost:5000' : '');
+const AUTH_TOKEN_STORAGE_KEY = 'amigo-rentals-auth-token';
+
 // Helper to get a pre-signed URL from your backend
 async function getPresignedUrl(file) {
-  const res = await fetch(`http://localhost:5000/sign-s3?filename=${encodeURIComponent(file.name)}&filetype=${encodeURIComponent(file.type)}`);
+  const token = localStorage.getItem(AUTH_TOKEN_STORAGE_KEY);
+  const headers = token ? { Authorization: `Bearer ${token}` } : {};
+  const res = await fetch(`${API_BASE_URL}/sign-s3?filename=${encodeURIComponent(file.name)}&filetype=${encodeURIComponent(file.type)}`, {
+    headers,
+  });
   if (!res.ok) throw new Error('Failed to get pre-signed URL');
   const { url } = await res.json();
   return url;

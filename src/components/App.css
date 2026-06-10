@@ -14,7 +14,7 @@ body {
 }
 
 .app {
-    padding-top: 9rem;
+    padding-top: 13rem;
     min-height: 100svh;
     display: flex;
     flex-direction: column;
@@ -27,7 +27,7 @@ body {
 
 @media (max-width: 800px) {
     .app {
-        padding-top: 12rem;
+        padding-top: 14rem;
     }
 
     .app-main {
@@ -37,7 +37,7 @@ body {
 
 @media (max-width: 480px) {
     .app {
-        padding-top: 14rem;
+        padding-top: 15rem;
     }
 
     .app-main {

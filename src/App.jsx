@@ -1,18 +1,20 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Header from './components/Header/Header';
 import Title from './components/Title/Title';
 import PropertyList from './components/PropertyList/PropertyList';
 import Footer from './components/Footer/Footer';
 import AdminLogin from './components/AdminLogin/AdminLogin';
 import AdminPanel from './components/AdminPanel/AdminPanel';
+import CommercialPages from './components/CommercialPages/CommercialPages';
+import CookieBanner from './components/CookieBanner/CookieBanner';
+import BookingCheckout from './components/BookingCheckout/BookingCheckout';
+import PaymentResult from './components/PaymentResult/PaymentResult';
 import './components/App.css';
 import defaultProperties from './Data/properties';
+import { trackPageView } from './utils/analytics';
+import { api } from './utils/api';
 
-const PROPERTIES_STORAGE_KEY = 'amigo-rentals-properties';
-const SITE_CONTENT_STORAGE_KEY = 'amigo-rentals-site-content';
-const ADMINS_STORAGE_KEY = 'amigo-rentals-admins';
-const SUPERUSER_NAME = 'justus';
-const INITIAL_SUPERUSER_PASSWORD = 'Unbeatable 12345.';
+const AUTH_TOKEN_STORAGE_KEY = 'amigo-rentals-auth-token';
 
 const DEFAULT_SITE_CONTENT = {
   brandName: 'Amigo Rentals',
@@ -21,178 +23,230 @@ const DEFAULT_SITE_CONTENT = {
   pageTitle: 'Rental Properties',
 };
 
-const loadStoredProperties = () => {
-  try {
-    const stored = localStorage.getItem(PROPERTIES_STORAGE_KEY);
-    if (!stored) {
-      return defaultProperties;
-    }
+const VALID_PAGES = new Set(['home', 'privacy', 'terms', 'refund', 'support', 'payment-result']);
 
-    const parsed = JSON.parse(stored);
-    return Array.isArray(parsed) ? parsed : defaultProperties;
-  } catch {
-    return defaultProperties;
+const parseHashState = () => {
+  const hash = window.location.hash || '#/home';
+  const [routePart, queryPart = ''] = hash.replace('#/', '').split('?');
+  const normalizedPage = String(routePart || 'home').trim().toLowerCase();
+  const page = VALID_PAGES.has(normalizedPage) ? normalizedPage : 'home';
+  const params = Object.fromEntries(new URLSearchParams(queryPart));
+
+  return { page, params };
+};
+
+const getStoredToken = () => localStorage.getItem(AUTH_TOKEN_STORAGE_KEY);
+
+const saveToken = (token) => {
+  if (token) {
+    localStorage.setItem(AUTH_TOKEN_STORAGE_KEY, token);
+  } else {
+    localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
   }
 };
 
-const loadStoredSiteContent = () => {
-  try {
-    const stored = localStorage.getItem(SITE_CONTENT_STORAGE_KEY);
-    if (!stored) {
-      return DEFAULT_SITE_CONTENT;
-    }
-
-    const parsed = JSON.parse(stored);
-    return {
-      ...DEFAULT_SITE_CONTENT,
-      ...parsed,
-    };
-  } catch {
-    return DEFAULT_SITE_CONTENT;
-  }
-};
-
-const loadStoredAdmins = () => {
-  const fallback = {
-    [SUPERUSER_NAME]: INITIAL_SUPERUSER_PASSWORD,
-  };
-
-  try {
-    const stored = localStorage.getItem(ADMINS_STORAGE_KEY);
-    if (!stored) {
-      return fallback;
-    }
-
-    const parsed = JSON.parse(stored);
-    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-      return fallback;
-    }
-
-    if (!parsed[SUPERUSER_NAME]) {
-      return {
-        ...parsed,
-        [SUPERUSER_NAME]: INITIAL_SUPERUSER_PASSWORD,
-      };
-    }
-
-    return parsed;
-  } catch {
-    return fallback;
-  }
-};
+const toAdminMap = (usernames = []) =>
+  usernames.reduce((result, username) => {
+    result[username] = true;
+    return result;
+  }, {});
 
 const App = () => {
-  const [properties, setProperties] = useState(loadStoredProperties);
-  const [siteContent, setSiteContent] = useState(loadStoredSiteContent);
-  const [admins, setAdmins] = useState(loadStoredAdmins);
+  const [properties, setProperties] = useState(defaultProperties);
+  const [siteContent, setSiteContent] = useState(DEFAULT_SITE_CONTENT);
+  const [admins, setAdmins] = useState({});
+  const [authToken, setAuthToken] = useState(getStoredToken);
   const [isAdminMode, setIsAdminMode] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentAdmin, setCurrentAdmin] = useState('');
+  const [currentPage, setCurrentPage] = useState(parseHashState().page);
+  const [pageParams, setPageParams] = useState(parseHashState().params);
+  const [checkoutProperty, setCheckoutProperty] = useState(null);
+  const [reconciliationItems, setReconciliationItems] = useState([]);
 
-  const nextId = useMemo(() => {
-    const ids = properties.map((property) => Number(property.id)).filter((id) => Number.isFinite(id));
-    return ids.length ? Math.max(...ids) + 1 : 1;
-  }, [properties]);
-
-  const persistProperties = (nextProperties) => {
-    setProperties(nextProperties);
-    localStorage.setItem(PROPERTIES_STORAGE_KEY, JSON.stringify(nextProperties));
-  };
-
-  const persistSiteContent = (nextSiteContent) => {
-    setSiteContent(nextSiteContent);
-    localStorage.setItem(SITE_CONTENT_STORAGE_KEY, JSON.stringify(nextSiteContent));
-  };
-
-  const persistAdmins = (nextAdmins) => {
-    setAdmins(nextAdmins);
-    localStorage.setItem(ADMINS_STORAGE_KEY, JSON.stringify(nextAdmins));
-  };
-
-  const handleCreateProperty = (propertyInput) => {
-    const createdProperty = {
-      id: nextId,
-      ...propertyInput,
+  useEffect(() => {
+    const handleHashChange = () => {
+      const next = parseHashState();
+      setCurrentPage(next.page);
+      setPageParams(next.params);
     };
-    persistProperties([createdProperty, ...properties]);
+
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
+
+  useEffect(() => {
+    trackPageView(currentPage);
+  }, [currentPage]);
+
+  const loadPublicData = async () => {
+    try {
+      const [propertiesResponse, siteContentResponse] = await Promise.all([
+        api.getProperties(),
+        api.getSiteContent(),
+      ]);
+      setProperties(Array.isArray(propertiesResponse.properties) ? propertiesResponse.properties : defaultProperties);
+      setSiteContent({
+        ...DEFAULT_SITE_CONTENT,
+        ...(siteContentResponse.siteContent || {}),
+      });
+    } catch {
+      setProperties(defaultProperties);
+      setSiteContent(DEFAULT_SITE_CONTENT);
+    }
   };
 
-  const handleUpdateProperty = (propertyId, propertyInput) => {
-    const nextProperties = properties.map((property) =>
-      property.id === propertyId
-        ? {
-            ...property,
-            ...propertyInput,
-          }
-        : property
-    );
-    persistProperties(nextProperties);
-  };
-
-  const handleDeleteProperty = (propertyId) => {
-    const nextProperties = properties.filter((property) => property.id !== propertyId);
-    persistProperties(nextProperties);
-  };
-
-  const handleAdminLogin = (username, password) => {
-    const normalizedUsername = username.trim().toLowerCase();
-    const savedPassword = admins[normalizedUsername];
-
-    if (!savedPassword || savedPassword !== password) {
+  const loadAdmins = async (token) => {
+    if (!token) {
+      setAdmins({});
       return false;
     }
 
-    setCurrentAdmin(normalizedUsername);
-    setIsAuthenticated(true);
-    setIsAdminMode(true);
-    return true;
+    try {
+      const response = await api.getAdmins(token);
+      setAdmins(toAdminMap(response.admins || []));
+      return true;
+    } catch {
+      setAdmins({});
+      return false;
+    }
   };
 
-  const handleAdminLogout = () => {
+  const loadReconciliation = async (token) => {
+    if (!token) {
+      setReconciliationItems([]);
+      return;
+    }
+
+    try {
+      const response = await api.getAdminReconciliation(token);
+      setReconciliationItems(Array.isArray(response.items) ? response.items : []);
+    } catch {
+      setReconciliationItems([]);
+    }
+  };
+
+  useEffect(() => {
+    loadPublicData();
+  }, []);
+
+  useEffect(() => {
+    const restoreSession = async () => {
+      if (!authToken) {
+        return;
+      }
+
+      try {
+        const response = await api.getSession(authToken);
+        const username = response.user?.username || '';
+        setCurrentAdmin(username);
+        setIsAuthenticated(Boolean(username));
+        await loadAdmins(authToken);
+        await loadReconciliation(authToken);
+      } catch {
+        saveToken(null);
+        setAuthToken(null);
+        setCurrentAdmin('');
+        setIsAuthenticated(false);
+        setAdmins({});
+        setReconciliationItems([]);
+      }
+    };
+
+    restoreSession();
+  }, [authToken]);
+
+  const handleCreateProperty = async (propertyInput) => {
+    const response = await api.createProperty(propertyInput, authToken);
+    setProperties((previous) => [response.property, ...previous]);
+  };
+
+  const handleUpdateProperty = async (propertyId, propertyInput) => {
+    const response = await api.updateProperty(propertyId, propertyInput, authToken);
+    setProperties((previous) =>
+      previous.map((property) => (property.id === propertyId ? response.property : property))
+    );
+  };
+
+  const handleDeleteProperty = async (propertyId) => {
+    await api.deleteProperty(propertyId, authToken);
+    setProperties((previous) => previous.filter((property) => property.id !== propertyId));
+  };
+
+  const handleSaveSiteContent = async (nextSiteContent) => {
+    const response = await api.updateSiteContent(nextSiteContent, authToken);
+    setSiteContent({
+      ...DEFAULT_SITE_CONTENT,
+      ...(response.siteContent || {}),
+    });
+  };
+
+  const handleAdminLogin = async (username, password) => {
+    try {
+      const response = await api.login(username, password);
+      const nextToken = response.token;
+      const nextAdmin = response.user?.username || '';
+      setAuthToken(nextToken);
+      saveToken(nextToken);
+      setCurrentAdmin(nextAdmin);
+      setIsAuthenticated(Boolean(nextAdmin));
+      setIsAdminMode(true);
+      await loadAdmins(nextToken);
+      await loadReconciliation(nextToken);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
+  const handleAdminLogout = async () => {
+    if (authToken) {
+      try {
+        await api.logout(authToken);
+      } catch {
+        // Ignore logout API errors and clear local state anyway.
+      }
+    }
+
+    saveToken(null);
+    setAuthToken(null);
     setIsAuthenticated(false);
     setIsAdminMode(false);
     setCurrentAdmin('');
+    setAdmins({});
+    setReconciliationItems([]);
   };
 
-  const handleAddAdmin = (username, password) => {
+  const handleAddAdmin = async (username, password) => {
     const normalizedUsername = username.trim().toLowerCase();
     if (!normalizedUsername || !password.trim()) {
       return { ok: false, message: 'Username and password are required.' };
     }
 
-    if (admins[normalizedUsername]) {
-      return { ok: false, message: 'That admin already exists.' };
+    try {
+      await api.addAdmin(normalizedUsername, password, authToken);
+      await loadAdmins(authToken);
+      return { ok: true, message: `Admin ${normalizedUsername} added.` };
+    } catch (error) {
+      return { ok: false, message: error.message || 'Unable to add admin.' };
     }
-
-    const nextAdmins = {
-      ...admins,
-      [normalizedUsername]: password,
-    };
-    persistAdmins(nextAdmins);
-    return { ok: true, message: `Admin ${normalizedUsername} added.` };
   };
 
-  const handleDeleteAdmin = (username) => {
+  const handleDeleteAdmin = async (username) => {
     const normalizedUsername = username.trim().toLowerCase();
-    if (normalizedUsername === SUPERUSER_NAME) {
-      return { ok: false, message: 'Super user justus cannot be removed.' };
+    try {
+      await api.deleteAdmin(normalizedUsername, authToken);
+      await loadAdmins(authToken);
+      return { ok: true, message: `Admin ${normalizedUsername} removed.` };
+    } catch (error) {
+      return { ok: false, message: error.message || 'Unable to remove admin.' };
     }
+  };
 
-    if (!admins[normalizedUsername]) {
-      return { ok: false, message: 'Admin account not found.' };
-    }
-
-    const nextAdmins = { ...admins };
-    delete nextAdmins[normalizedUsername];
-    persistAdmins(nextAdmins);
-
-    if (currentAdmin === normalizedUsername) {
-      setIsAuthenticated(false);
-      setIsAdminMode(false);
-      setCurrentAdmin('');
-    }
-
-    return { ok: true, message: `Admin ${normalizedUsername} removed.` };
+  const handleRefundBooking = async (bookingId, reason) => {
+    const response = await api.refundBookingPayment(bookingId, reason, authToken);
+    await loadReconciliation(authToken);
+    return response;
   };
 
   return (
@@ -215,35 +269,64 @@ const App = () => {
           }
         }}
       />
-      <Title title={siteContent.pageTitle} />
+      <Title title={currentPage === 'home' ? siteContent.pageTitle : 'Customer Information'} />
       <main className='app-main'>
-        {!isAdminMode && <PropertyList properties={properties} />}
+        {currentPage === 'home' && !isAdminMode && (
+          <>
+            {checkoutProperty && (
+              <BookingCheckout
+                property={checkoutProperty}
+                onClose={() => setCheckoutProperty(null)}
+              />
+            )}
+            <PropertyList
+              properties={properties}
+              onBookProperty={(property) => setCheckoutProperty(property)}
+            />
+          </>
+        )}
 
-        {isAdminMode && !isAuthenticated && (
+        {currentPage === 'home' && isAdminMode && !isAuthenticated && (
           <AdminLogin
             onLogin={handleAdminLogin}
             onCancel={() => setIsAdminMode(false)}
           />
         )}
 
-        {isAdminMode && isAuthenticated && (
+        {currentPage === 'home' && isAdminMode && isAuthenticated && (
           <AdminPanel
             properties={properties}
             siteContent={siteContent}
             admins={admins}
             currentAdmin={currentAdmin}
-            onSaveSiteContent={persistSiteContent}
+            onSaveSiteContent={handleSaveSiteContent}
             onCreateProperty={handleCreateProperty}
             onUpdateProperty={handleUpdateProperty}
             onDeleteProperty={handleDeleteProperty}
             onAddAdmin={handleAddAdmin}
             onDeleteAdmin={handleDeleteAdmin}
+            reconciliationItems={reconciliationItems}
+            onRefreshReconciliation={() => loadReconciliation(authToken)}
+            onRefundBooking={handleRefundBooking}
             onExit={() => setIsAdminMode(false)}
             onLogout={handleAdminLogout}
           />
         )}
+
+        {currentPage === 'payment-result' && (
+          <PaymentResult
+            status={pageParams.status}
+            bookingId={pageParams.bookingId}
+            sessionId={pageParams.session_id}
+          />
+        )}
+
+        {currentPage !== 'home' && currentPage !== 'payment-result' && (
+          <CommercialPages page={currentPage} siteContent={siteContent} />
+        )}
       </main>
       <Footer />
+      <CookieBanner />
     </div>
   );
 };

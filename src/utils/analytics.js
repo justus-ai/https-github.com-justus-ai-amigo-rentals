@@ -1,0 +1,12 @@
+export const trackPageView = (pageName) => {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  if (typeof window.gtag === 'function') {
+    window.gtag('event', 'page_view', {
+      page_title: pageName,
+      page_path: `#/${pageName}`,
+    });
+  }
+};

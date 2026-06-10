@@ -1,0 +1,25 @@
+.payment-result {
+  max-width: 760px;
+  margin: 1.5rem auto;
+  padding: 1rem;
+  border: 1px solid #dbe2ea;
+  border-radius: 0.75rem;
+  background: #ffffff;
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.06);
+  text-align: center;
+}
+
+.payment-result h2 {
+  margin: 0 0 0.5rem;
+}
+
+.payment-result p {
+  margin: 0 0 1rem;
+  color: #334155;
+}
+
+.payment-result a {
+  color: #0f766e;
+  font-weight: 700;
+  text-decoration: none;
+}

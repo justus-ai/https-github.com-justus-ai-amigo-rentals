@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://amigo-rentals.example.com/sitemap.xml

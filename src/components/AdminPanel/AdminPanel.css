@@ -155,6 +155,49 @@
   padding: 0.5rem 0.6rem;
 }
 
+.reconciliation-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.reconciliation-head button,
+.reconciliation-table button {
+  border: none;
+  border-radius: 0.45rem;
+  padding: 0.45rem 0.7rem;
+  cursor: pointer;
+  background: #111827;
+  color: #fff;
+}
+
+.reconciliation-table button.danger {
+  background: #b91c1c;
+}
+
+.reconciliation-table-wrap {
+  overflow-x: auto;
+}
+
+.reconciliation-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 780px;
+}
+
+.reconciliation-table th,
+.reconciliation-table td {
+  border: 1px solid #d1d5db;
+  padding: 0.45rem 0.5rem;
+  text-align: left;
+  vertical-align: top;
+}
+
+.reconciliation-table th {
+  background: #f3f4f6;
+}
+
 @media (max-width: 900px) {
   .admin-grid {
     grid-template-columns: 1fr;

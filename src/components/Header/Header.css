@@ -8,9 +8,10 @@
     position: absolute;
     left: 0;
     right: 0;
-    bottom: -72px;
-    z-index: 11;
+    bottom: -64px;
+    z-index: 30;
     width: 100%;
+    pointer-events: auto;
 }
 
 .dropdown {
@@ -28,6 +29,7 @@
     cursor: pointer;
     font-weight: 700;
     transition: background 0.2s;
+    pointer-events: auto;
 }
 
 .dropbtn:hover, .dropbtn:focus {
@@ -81,9 +83,24 @@
 .dropdown:focus-within .dropdown-content {
     display: block;
 }
+
+@media (max-width: 480px) {
+    .property-dropdowns.spaced {
+        gap: 0;
+        justify-content: space-evenly;
+    }
+
+    .dropbtn {
+        padding: 0.4rem 0.6rem;
+        font-size: 0.85rem;
+        white-space: nowrap;
+    }
+}
+
 header {
     justify-content: space-between;
     display: flex;
+    flex-wrap: wrap;
     gap: 0.75rem;
     background-color: #282c34;
     padding: 0.625rem 1.25rem;
@@ -160,6 +177,19 @@ header {
         flex-direction: column;
         align-items: stretch;
        
+    }
+
+    .property-dropdowns.spaced {
+        position: static;
+        justify-content: center;
+        align-items: center;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+        margin-top: 0.25rem;
+    }
+
+    .dropbtn {
+        border-radius: 0.5rem;
     }
     .item {
         margin-bottom: 0.5rem;

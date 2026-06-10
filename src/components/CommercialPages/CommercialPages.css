@@ -1,0 +1,41 @@
+.commercial-page {
+  max-width: 960px;
+  margin: 1.5rem auto;
+  padding: 1rem;
+}
+
+.commercial-page h2 {
+  margin: 0 0 0.4rem;
+  color: #0f172a;
+}
+
+.policy-date {
+  margin: 0 0 1rem;
+  color: #475569;
+  font-size: 0.95rem;
+}
+
+.commercial-card {
+  background: #ffffff;
+  border: 1px solid #dbe2ea;
+  border-radius: 0.75rem;
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.06);
+  padding: 0.95rem 1rem;
+  margin-bottom: 0.8rem;
+}
+
+.commercial-card h3 {
+  margin: 0 0 0.45rem;
+  color: #10243d;
+}
+
+.commercial-card p,
+.commercial-card li {
+  color: #1f2937;
+  line-height: 1.5;
+}
+
+.commercial-card ul {
+  margin: 0.3rem 0 0;
+  padding-left: 1.2rem;
+}

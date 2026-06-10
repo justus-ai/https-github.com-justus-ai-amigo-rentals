@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import S3ImageUploader from './S3ImageUploader';
 import './AdminPanel.css';
 
@@ -31,6 +31,9 @@ const AdminPanel = ({
   onDeleteProperty,
   onAddAdmin,
   onDeleteAdmin,
+  reconciliationItems,
+  onRefreshReconciliation,
+  onRefundBooking,
   onExit,
   onLogout,
 }) => {
@@ -40,6 +43,13 @@ const AdminPanel = ({
   const [siteForm, setSiteForm] = useState(siteContent);
   const [newAdminUsername, setNewAdminUsername] = useState('');
   const [newAdminPassword, setNewAdminPassword] = useState('');
+  const [refundReason, setRefundReason] = useState('Requested by customer');
+
+  useEffect(() => {
+    Promise.resolve(onRefreshReconciliation()).catch(() => {
+      // Ignore initial refresh failures and let manual refresh handle retries.
+    });
+  }, []);
 
   const selectedProperty = useMemo(
     () => properties.find((property) => property.id === selectedId),
@@ -83,49 +93,65 @@ const AdminPanel = ({
     area: normalizeNumber(form.area),
   });
 
-  const handleCreate = () => {
+  const handleCreate = async () => {
     if (!form.title.trim() || !form.type.trim()) {
       setMessage('Type and title are required before adding a property.');
       return;
     }
 
-    onCreateProperty(toPropertyPayload());
-    setForm(EMPTY_PROPERTY);
-    setSelectedId(null);
-    setMessage('Property created.');
+    try {
+      await Promise.resolve(onCreateProperty(toPropertyPayload()));
+      setForm(EMPTY_PROPERTY);
+      setSelectedId(null);
+      setMessage('Property created.');
+    } catch (error) {
+      setMessage(error.message || 'Unable to create property.');
+    }
   };
 
-  const handleUpdate = () => {
+  const handleUpdate = async () => {
     if (!selectedProperty) {
       setMessage('Pick a property from the list to update.');
       return;
     }
 
-    onUpdateProperty(selectedProperty.id, toPropertyPayload());
-    setMessage('Property updated.');
+    try {
+      await Promise.resolve(onUpdateProperty(selectedProperty.id, toPropertyPayload()));
+      setMessage('Property updated.');
+    } catch (error) {
+      setMessage(error.message || 'Unable to update property.');
+    }
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!selectedProperty) {
       setMessage('Pick a property from the list to delete.');
       return;
     }
 
-    onDeleteProperty(selectedProperty.id);
-    setForm(EMPTY_PROPERTY);
-    setSelectedId(null);
-    setMessage('Property deleted.');
+    try {
+      await Promise.resolve(onDeleteProperty(selectedProperty.id));
+      setForm(EMPTY_PROPERTY);
+      setSelectedId(null);
+      setMessage('Property deleted.');
+    } catch (error) {
+      setMessage(error.message || 'Unable to delete property.');
+    }
   };
 
-  const handleSaveSiteContent = (event) => {
+  const handleSaveSiteContent = async (event) => {
     event.preventDefault();
-    onSaveSiteContent(siteForm);
-    setMessage('Website details updated.');
+    try {
+      await Promise.resolve(onSaveSiteContent(siteForm));
+      setMessage('Website details updated.');
+    } catch (error) {
+      setMessage(error.message || 'Unable to update website details.');
+    }
   };
 
-  const handleAddAdminSubmit = (event) => {
+  const handleAddAdminSubmit = async (event) => {
     event.preventDefault();
-    const result = onAddAdmin(newAdminUsername, newAdminPassword);
+    const result = await Promise.resolve(onAddAdmin(newAdminUsername, newAdminPassword));
     setMessage(result.message);
     if (result.ok) {
       setNewAdminUsername('');
@@ -133,9 +159,27 @@ const AdminPanel = ({
     }
   };
 
-  const handleDeleteAdminClick = (username) => {
-    const result = onDeleteAdmin(username);
+  const handleDeleteAdminClick = async (username) => {
+    const result = await Promise.resolve(onDeleteAdmin(username));
     setMessage(result.message);
+  };
+
+  const handleRefreshReconciliation = async () => {
+    try {
+      await Promise.resolve(onRefreshReconciliation());
+      setMessage('Reconciliation data refreshed.');
+    } catch (error) {
+      setMessage(error.message || 'Unable to refresh reconciliation data.');
+    }
+  };
+
+  const handleRefund = async (bookingId) => {
+    try {
+      const result = await Promise.resolve(onRefundBooking(bookingId, refundReason));
+      setMessage(result.message || 'Refund request processed.');
+    } catch (error) {
+      setMessage(error.message || 'Unable to process refund.');
+    }
   };
 
   const canManageAdmins = currentAdmin === 'justus';
@@ -200,7 +244,7 @@ const AdminPanel = ({
                 <input value={form.location} onChange={(event) => handleChange('location', event.target.value)} />
               </label>
               <label>
-                Price
+                Price (KES)
                 <input type='number' value={form.price} onChange={(event) => handleChange('price', event.target.value)} />
               </label>
               <label>
@@ -332,6 +376,65 @@ const AdminPanel = ({
                   </li>
                 ))}
             </ul>
+          </section>
+
+          <section className='admin-form'>
+            <div className='reconciliation-head'>
+              <h3>Bookings and Payments</h3>
+              <button type='button' onClick={handleRefreshReconciliation}>Refresh</button>
+            </div>
+
+            <label>
+              Refund Reason
+              <input
+                value={refundReason}
+                onChange={(event) => setRefundReason(event.target.value)}
+                placeholder='Reason for refund'
+              />
+            </label>
+
+            <div className='reconciliation-table-wrap'>
+              <table className='reconciliation-table'>
+                <thead>
+                  <tr>
+                    <th>Booking</th>
+                    <th>Property</th>
+                    <th>Dates</th>
+                    <th>Amount</th>
+                    <th>Booking Status</th>
+                    <th>Payment</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {reconciliationItems.length === 0 && (
+                    <tr>
+                      <td colSpan='7'>No booking/payment records found.</td>
+                    </tr>
+                  )}
+                  {reconciliationItems.map((item) => (
+                    <tr key={item.booking_id}>
+                      <td>#{item.booking_id}<br />{item.full_name}</td>
+                      <td>{item.property_title}<br />{item.property_location}</td>
+                      <td>{item.check_in_date || '-'} to {item.check_out_date || '-'}</td>
+                      <td>{item.currency} {Math.round(item.amount || 0)}</td>
+                      <td>{item.booking_status}</td>
+                      <td>{item.payment_provider || '-'} / {item.payment_status || '-'}</td>
+                      <td>
+                        <button
+                          type='button'
+                          className='danger'
+                          disabled={item.booking_status !== 'confirmed'}
+                          onClick={() => handleRefund(item.booking_id)}
+                        >
+                          Refund
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </section>
         </div>
       </div>

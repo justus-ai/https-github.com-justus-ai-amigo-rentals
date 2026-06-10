@@ -3,7 +3,7 @@ import './PropertyList.css';
 import Property from './Property/Property';
 
 
-const PropertyList = ({ properties }) => {
+const PropertyList = ({ properties, onBookProperty = () => {} }) => {
     return (
         <div className='property-list'>
         
@@ -11,6 +11,7 @@ const PropertyList = ({ properties }) => {
                 <Property 
                 key={property.id} 
                 {...property}
+                onBookNow={onBookProperty}
                  />
             ))}
             </div>

@@ -6,10 +6,10 @@ const AdminLogin = ({ onLogin, onCancel }) => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
 
-    const success = onLogin(username, password);
+    const success = await Promise.resolve(onLogin(username, password));
     if (!success) {
       setError('Invalid username or password.');
       return;
