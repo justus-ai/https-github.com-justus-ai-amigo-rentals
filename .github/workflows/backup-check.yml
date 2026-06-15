@@ -1,0 +1,23 @@
+name: Backup Script Check
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 3 * * *'
+
+jobs:
+  backup-script-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify backup scripts exist
+        run: |
+          test -f scripts/backup-db.sh
+          test -f scripts/backup-monitor.sh
+
+      - name: Verify launch docs exist
+        run: |
+          test -f docs/LAUNCH_CHECKLIST.md
+          test -f docs/RENDER_AUTOMATION.md

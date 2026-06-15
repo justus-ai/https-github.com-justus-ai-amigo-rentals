@@ -19,3 +19,4 @@
 - [ ] Review failed payment and refund queue.
 - [ ] Track support response time and unresolved tickets.
 - [ ] Enable strict preflight checks in production startup.
+- [ ] Follow Render automation setup in `docs/RENDER_AUTOMATION.md`.

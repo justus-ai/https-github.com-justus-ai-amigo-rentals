@@ -1,9 +1,8 @@
 import React from 'react';
 import './Header.css';
-import { House, Phone, Mail } from 'lucide-react';
+import { Phone, Mail } from 'lucide-react';
 
 const Header = ({
-  brandName,
   contactPhone,
   contactEmail,
   isAuthenticated,

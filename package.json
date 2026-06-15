@@ -6,7 +6,8 @@
     "start": "node server.js",
     "preflight": "node scripts/preflight.cjs",
     "preflight:strict": "node scripts/preflight.cjs --strict",
-    "backup:db": "bash scripts/backup-db.sh"
+    "backup:db": "bash scripts/backup-db.sh",
+    "backup:monitor": "bash scripts/backup-monitor.sh"
   },
   "dependencies": {
     "aws-sdk": "^2.1693.0",
