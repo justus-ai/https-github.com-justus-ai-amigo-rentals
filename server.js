@@ -835,7 +835,7 @@ app.post('/api/bookings', (req, res) => {
   res.status(201).json({ booking });
 });
 
-app.get('/api/bookings/:id', (req, res) => {
+app.get('/api/bookings/:id', requireAuth, (req, res) => {
   const bookingId = Number(req.params.id);
   if (!Number.isFinite(bookingId)) {
     return res.status(400).json({ error: 'Invalid booking id.' });
@@ -943,6 +943,31 @@ app.post('/api/payments/stripe/verify-session', async (req, res) => {
 
   try {
     const session = await stripeClient.checkout.sessions.retrieve(sessionId);
+    const sessionBookingId = Number(session.metadata?.bookingId || 0);
+
+    if (!Number.isFinite(sessionBookingId) || sessionBookingId <= 0) {
+      return res.status(409).json({ error: 'Stripe session is missing booking metadata.' });
+    }
+
+    if (sessionBookingId !== bookingId) {
+      return res.status(409).json({ error: 'Stripe session does not match this booking.' });
+    }
+
+    const paymentRecord = db
+      .prepare(
+        `
+          SELECT id, status
+          FROM payments
+          WHERE booking_id = ? AND provider = 'stripe' AND external_id = ?
+          LIMIT 1
+        `
+      )
+      .get(bookingId, sessionId);
+
+    if (!paymentRecord) {
+      return res.status(404).json({ error: 'No Stripe payment record found for this booking session.' });
+    }
+
     if (session.payment_status !== 'paid') {
       return res.json({ verified: false, status: session.payment_status });
     }
