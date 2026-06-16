@@ -25,6 +25,42 @@
   gap: 1rem;
 }
 
+.booking-quote-panel,
+.booking-availability-panel {
+  border: 1px solid #dbe2ea;
+  border-radius: 0.65rem;
+  padding: 0.8rem 0.9rem;
+  background: #f8fafc;
+  margin-bottom: 0.9rem;
+}
+
+.booking-quote-panel h3,
+.booking-availability-panel h3 {
+  margin: 0 0 0.35rem;
+  font-size: 1rem;
+}
+
+.booking-quote-panel p,
+.booking-availability-panel p {
+  margin: 0 0 0.4rem;
+  color: #334155;
+}
+
+.booking-quote-panel ul,
+.booking-blocked-list {
+  margin: 0;
+  padding-left: 1.1rem;
+}
+
+.booking-quote-total {
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.booking-blocked-list li {
+  margin-bottom: 0.2rem;
+}
+
 .booking-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -65,6 +101,8 @@
 .booking-actions {
   display: flex;
   justify-content: flex-end;
+  gap: 0.65rem;
+  flex-wrap: wrap;
 }
 
 .booking-actions button,

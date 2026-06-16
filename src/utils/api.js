@@ -27,6 +27,18 @@ const request = async (path, { method = 'GET', body, token } = {}) => {
 
 export const api = {
   getProperties: () => request('/api/properties'),
+  getPropertyAvailability: (propertyId, checkInDate, checkOutDate) => {
+    const params = new URLSearchParams();
+    if (checkInDate) {
+      params.set('checkInDate', checkInDate);
+    }
+    if (checkOutDate) {
+      params.set('checkOutDate', checkOutDate);
+    }
+
+    const suffix = params.toString() ? `?${params.toString()}` : '';
+    return request(`/api/properties/${propertyId}/availability${suffix}`);
+  },
   createProperty: (property, token) => request('/api/properties', { method: 'POST', body: property, token }),
   updateProperty: (propertyId, property, token) =>
     request(`/api/properties/${propertyId}`, { method: 'PUT', body: property, token }),
@@ -48,6 +60,7 @@ export const api = {
   getPaymentConfig: () => request('/api/payments/config'),
   createBooking: (booking) => request('/api/bookings', { method: 'POST', body: booking }),
   getBooking: (bookingId) => request(`/api/bookings/${bookingId}`),
+  submitEnquiry: (enquiry) => request('/api/enquiries', { method: 'POST', body: enquiry }),
 
   createStripeCheckoutSession: (bookingId) =>
     request('/api/payments/stripe/checkout-session', { method: 'POST', body: { bookingId } }),
@@ -64,6 +77,13 @@ export const api = {
     }),
 
   getAdminReconciliation: (token) => request('/api/admin/reconciliation', { token }),
+  getAdminEnquiries: (token) => request('/api/admin/enquiries', { token }),
+  updateEnquiryStatus: (enquiryId, status, token) =>
+    request(`/api/admin/enquiries/${enquiryId}/status`, {
+      method: 'PUT',
+      body: { status },
+      token,
+    }),
   refundBookingPayment: (bookingId, reason, token) =>
     request('/api/payments/refund', {
       method: 'POST',

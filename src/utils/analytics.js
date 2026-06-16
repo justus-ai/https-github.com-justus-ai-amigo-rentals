@@ -10,3 +10,13 @@ export const trackPageView = (pageName) => {
     });
   }
 };
+
+export const trackEvent = (eventName, params = {}) => {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  if (typeof window.gtag === 'function') {
+    window.gtag('event', eventName, params);
+  }
+};

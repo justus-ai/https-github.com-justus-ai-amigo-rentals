@@ -20,6 +20,17 @@ const normalizeNumber = (value) => {
   return Number.isNaN(parsed) ? 0 : parsed;
 };
 
+const formatDateTime = (value) => {
+  if (!value) {
+    return '-';
+  }
+
+  return new Date(value).toLocaleString('en-KE', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  });
+};
+
 const AdminPanel = ({
   properties,
   siteContent,
@@ -34,6 +45,9 @@ const AdminPanel = ({
   reconciliationItems,
   onRefreshReconciliation,
   onRefundBooking,
+  enquiryItems,
+  onRefreshEnquiries,
+  onUpdateEnquiryStatus,
   onExit,
   onLogout,
 }) => {
@@ -44,10 +58,16 @@ const AdminPanel = ({
   const [newAdminUsername, setNewAdminUsername] = useState('');
   const [newAdminPassword, setNewAdminPassword] = useState('');
   const [refundReason, setRefundReason] = useState('Requested by customer');
+  const [enquiryQuery, setEnquiryQuery] = useState('');
+  const [enquiryStatusFilter, setEnquiryStatusFilter] = useState('all');
 
   useEffect(() => {
     Promise.resolve(onRefreshReconciliation()).catch(() => {
       // Ignore initial refresh failures and let manual refresh handle retries.
+    });
+
+    Promise.resolve(onRefreshEnquiries()).catch(() => {
+      // Ignore initial enquiry refresh failures and allow manual retry.
     });
   }, []);
 
@@ -55,6 +75,54 @@ const AdminPanel = ({
     () => properties.find((property) => property.id === selectedId),
     [properties, selectedId]
   );
+
+  const enquiryMetrics = useMemo(() => {
+    const metrics = {
+      total: enquiryItems.length,
+      new: 0,
+      contacted: 0,
+      closed: 0,
+    };
+
+    for (const item of enquiryItems) {
+      if (item.status === 'new') {
+        metrics.new += 1;
+      } else if (item.status === 'contacted') {
+        metrics.contacted += 1;
+      } else if (item.status === 'closed') {
+        metrics.closed += 1;
+      }
+    }
+
+    return metrics;
+  }, [enquiryItems]);
+
+  const filteredEnquiries = useMemo(() => {
+    const normalizedQuery = enquiryQuery.trim().toLowerCase();
+
+    return enquiryItems.filter((item) => {
+      if (enquiryStatusFilter !== 'all' && item.status !== enquiryStatusFilter) {
+        return false;
+      }
+
+      if (!normalizedQuery) {
+        return true;
+      }
+
+      const searchHaystack = [
+        item.property_title,
+        item.property_location,
+        item.full_name,
+        item.email,
+        item.phone_number,
+        item.message,
+      ]
+        .join(' ')
+        .toLowerCase();
+
+      return searchHaystack.includes(normalizedQuery);
+    });
+  }, [enquiryItems, enquiryQuery, enquiryStatusFilter]);
 
   const applyPropertyToForm = (property) => {
     if (!property) {
@@ -179,6 +247,24 @@ const AdminPanel = ({
       setMessage(result.message || 'Refund request processed.');
     } catch (error) {
       setMessage(error.message || 'Unable to process refund.');
+    }
+  };
+
+  const handleRefreshEnquiries = async () => {
+    try {
+      await Promise.resolve(onRefreshEnquiries());
+      setMessage('Enquiries refreshed.');
+    } catch (error) {
+      setMessage(error.message || 'Unable to refresh enquiries.');
+    }
+  };
+
+  const handleEnquiryStatusUpdate = async (enquiryId, status) => {
+    try {
+      await Promise.resolve(onUpdateEnquiryStatus(enquiryId, status));
+      setMessage(`Enquiry #${enquiryId} marked as ${status}.`);
+    } catch (error) {
+      setMessage(error.message || 'Unable to update enquiry status.');
     }
   };
 
@@ -429,6 +515,102 @@ const AdminPanel = ({
                         >
                           Refund
                         </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section className='admin-form'>
+            <div className='reconciliation-head'>
+              <h3>Customer Enquiries</h3>
+              <button type='button' onClick={handleRefreshEnquiries}>Refresh</button>
+            </div>
+
+            <div className='enquiry-toolbar'>
+              <label>
+                Search
+                <input
+                  value={enquiryQuery}
+                  onChange={(event) => setEnquiryQuery(event.target.value)}
+                  placeholder='Search by guest, email, phone, property, or message'
+                />
+              </label>
+              <label>
+                Status
+                <select
+                  value={enquiryStatusFilter}
+                  onChange={(event) => setEnquiryStatusFilter(event.target.value)}
+                >
+                  <option value='all'>All</option>
+                  <option value='new'>New</option>
+                  <option value='contacted'>Contacted</option>
+                  <option value='closed'>Closed</option>
+                </select>
+              </label>
+            </div>
+
+            <div className='enquiry-metrics'>
+              <span className='metric-pill'>Total: {enquiryMetrics.total}</span>
+              <span className='metric-pill metric-new'>New: {enquiryMetrics.new}</span>
+              <span className='metric-pill metric-contacted'>Contacted: {enquiryMetrics.contacted}</span>
+              <span className='metric-pill metric-closed'>Closed: {enquiryMetrics.closed}</span>
+              <span className='metric-pill'>Showing: {filteredEnquiries.length}</span>
+            </div>
+
+            <div className='reconciliation-table-wrap'>
+              <table className='reconciliation-table'>
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Received</th>
+                    <th>Property</th>
+                    <th>Guest</th>
+                    <th>Dates</th>
+                    <th>Message</th>
+                    <th>Status</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredEnquiries.length === 0 && (
+                    <tr>
+                      <td colSpan='8'>No enquiries match the current filters.</td>
+                    </tr>
+                  )}
+                  {filteredEnquiries.map((item) => (
+                    <tr key={item.id}>
+                      <td>#{item.id}</td>
+                      <td>{formatDateTime(item.created_at)}</td>
+                      <td>{item.property_title}<br />{item.property_location}</td>
+                      <td>{item.full_name}<br />{item.email}<br />{item.phone_number || '-'}</td>
+                      <td>{item.check_in_date || '-'} to {item.check_out_date || '-'}</td>
+                      <td>{item.message || '-'}</td>
+                      <td>
+                        <span className={`enquiry-status enquiry-${item.status}`}>
+                          {item.status}
+                        </span>
+                      </td>
+                      <td>
+                        <div className='enquiry-actions'>
+                          <button
+                            type='button'
+                            onClick={() => handleEnquiryStatusUpdate(item.id, 'contacted')}
+                            disabled={item.status === 'contacted'}
+                          >
+                            Mark Contacted
+                          </button>
+                          <button
+                            type='button'
+                            className='secondary'
+                            onClick={() => handleEnquiryStatusUpdate(item.id, 'closed')}
+                            disabled={item.status === 'closed'}
+                          >
+                            Close
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}

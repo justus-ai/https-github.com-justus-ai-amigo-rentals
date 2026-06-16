@@ -176,6 +176,40 @@
   background: #b91c1c;
 }
 
+.reconciliation-table button.secondary {
+  background: #e5e7eb;
+  color: #111827;
+}
+
+.enquiry-actions {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.enquiry-status {
+  display: inline-block;
+  border-radius: 999px;
+  padding: 0.2rem 0.55rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.enquiry-new {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.enquiry-contacted {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.enquiry-closed {
+  background: #dcfce7;
+  color: #166534;
+}
+
 .reconciliation-table-wrap {
   overflow-x: auto;
 }

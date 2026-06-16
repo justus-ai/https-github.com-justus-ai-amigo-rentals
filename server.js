@@ -36,6 +36,14 @@ app.use(
   })
 );
 
+const enquiryRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 8,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many enquiries submitted. Please try again later.' },
+});
+
 const dataDir = path.join(__dirname, 'data');
 if (!fs.existsSync(dataDir)) {
   fs.mkdirSync(dataDir, { recursive: true });
@@ -112,6 +120,20 @@ db.exec(`
     created_at INTEGER NOT NULL,
     updated_at INTEGER NOT NULL,
     FOREIGN KEY(booking_id) REFERENCES bookings(id)
+  );
+
+  CREATE TABLE IF NOT EXISTS enquiries (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    property_id INTEGER NOT NULL,
+    full_name TEXT NOT NULL,
+    email TEXT NOT NULL,
+    phone_number TEXT,
+    check_in_date TEXT,
+    check_out_date TEXT,
+    message TEXT,
+    status TEXT NOT NULL DEFAULT 'new',
+    created_at INTEGER NOT NULL,
+    FOREIGN KEY(property_id) REFERENCES properties(id)
   );
 `);
 
@@ -267,6 +289,9 @@ const asNumber = (value, fallback = 0) => {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : fallback;
 };
+
+const isIsoDate = (value) => /^\d{4}-\d{2}-\d{2}$/.test(String(value || ''));
+const isLikelyEmail = (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || ''));
 
 const parseJsonObject = (value) => {
   try {
@@ -427,6 +452,44 @@ const sendBookingCreatedEmail = (bookingId) => {
   });
 };
 
+const sendEnquiryCreatedEmail = (enquiryId) => {
+  const enquiry = db
+    .prepare(
+      `
+        SELECT e.id, e.full_name, e.email, e.phone_number, e.check_in_date, e.check_out_date, e.message,
+               p.title AS property_title, p.location AS property_location
+        FROM enquiries e
+        JOIN properties p ON p.id = e.property_id
+        WHERE e.id = ?
+      `
+    )
+    .get(enquiryId);
+
+  if (!enquiry) {
+    return;
+  }
+
+  const customerText = `Hello ${enquiry.full_name},\n\nWe received your enquiry for ${enquiry.property_title} in ${enquiry.property_location}.\nPreferred check-in: ${enquiry.check_in_date || 'Not provided'}\nPreferred check-out: ${enquiry.check_out_date || 'Not provided'}\n\nOur team will reach out shortly.`;
+  sendEmail({
+    to: enquiry.email,
+    subject: `Enquiry received for ${enquiry.property_title}`,
+    text: customerText,
+  }).catch((error) => {
+    console.error('Enquiry customer email error:', error.message);
+  });
+
+  if (supportNotificationEmail) {
+    const supportText = `New enquiry #${enquiry.id}\nProperty: ${enquiry.property_title} (${enquiry.property_location})\nName: ${enquiry.full_name}\nEmail: ${enquiry.email}\nPhone: ${enquiry.phone_number || 'Not provided'}\nCheck-in: ${enquiry.check_in_date || 'Not provided'}\nCheck-out: ${enquiry.check_out_date || 'Not provided'}\nMessage: ${enquiry.message || 'None'}`;
+    sendEmail({
+      to: supportNotificationEmail,
+      subject: `New property enquiry #${enquiry.id}`,
+      text: supportText,
+    }).catch((error) => {
+      console.error('Enquiry support email error:', error.message);
+    });
+  }
+};
+
 const hasBookingDateConflict = (propertyId, checkInDate, checkOutDate) => {
   const conflict = db
     .prepare(
@@ -563,6 +626,61 @@ app.get('/api/properties', (_req, res) => {
     .prepare('SELECT id, type, title, location, price, bedrooms, bathrooms, area, image, description, available FROM properties ORDER BY id DESC')
     .all();
   res.json({ properties: rows.map(formatProperty) });
+});
+
+app.get('/api/properties/:id/availability', (req, res) => {
+  const propertyId = Number(req.params.id);
+  if (!Number.isFinite(propertyId)) {
+    return res.status(400).json({ error: 'Invalid property id.' });
+  }
+
+  const property = db.prepare('SELECT id, available FROM properties WHERE id = ?').get(propertyId);
+  if (!property) {
+    return res.status(404).json({ error: 'Property not found.' });
+  }
+
+  const blockedRanges = db
+    .prepare(
+      `
+        SELECT check_in_date, check_out_date, status
+        FROM bookings
+        WHERE property_id = ?
+          AND status IN (?, ?, ?)
+          AND check_in_date IS NOT NULL
+          AND check_out_date IS NOT NULL
+        ORDER BY check_in_date ASC
+        LIMIT 24
+      `
+    )
+    .all(
+      propertyId,
+      BOOKING_STATUS.pendingPayment,
+      BOOKING_STATUS.awaitingMpesa,
+      BOOKING_STATUS.confirmed
+    );
+
+  const checkInDate = String(req.query?.checkInDate || '').trim();
+  const checkOutDate = String(req.query?.checkOutDate || '').trim();
+  let isRequestedRangeAvailable = null;
+
+  if (checkInDate || checkOutDate) {
+    if (!isIsoDate(checkInDate) || !isIsoDate(checkOutDate)) {
+      return res.status(400).json({ error: 'Dates must use YYYY-MM-DD format.' });
+    }
+
+    if (checkOutDate <= checkInDate) {
+      return res.status(400).json({ error: 'Check-out date must be after check-in date.' });
+    }
+
+    isRequestedRangeAvailable = !hasBookingDateConflict(propertyId, checkInDate, checkOutDate);
+  }
+
+  return res.json({
+    propertyId,
+    propertyAvailable: Boolean(property.available),
+    blockedRanges,
+    isRequestedRangeAvailable,
+  });
 });
 
 app.post('/api/properties', requireAuth, (req, res) => {
@@ -769,6 +887,112 @@ app.get('/api/payments/config', (_req, res) => {
   });
 });
 
+app.post('/api/enquiries', enquiryRateLimiter, (req, res) => {
+  const propertyId = Number(req.body?.propertyId);
+  const fullName = String(req.body?.fullName || '').trim();
+  const email = String(req.body?.email || '').trim();
+  const phoneNumber = String(req.body?.phoneNumber || '').trim();
+  const checkInDate = String(req.body?.checkInDate || '').trim();
+  const checkOutDate = String(req.body?.checkOutDate || '').trim();
+  const message = String(req.body?.message || '').trim();
+  const website = String(req.body?.website || '').trim();
+
+  if (!Number.isFinite(propertyId)) {
+    return res.status(400).json({ error: 'Property is required.' });
+  }
+
+  if (!fullName || !email) {
+    return res.status(400).json({ error: 'Name and email are required.' });
+  }
+
+  if (!isLikelyEmail(email)) {
+    return res.status(400).json({ error: 'Please provide a valid email address.' });
+  }
+
+  if (website) {
+    return res.status(400).json({ error: 'Spam check failed.' });
+  }
+
+  if (message.length > 2000) {
+    return res.status(400).json({ error: 'Message is too long.' });
+  }
+
+  if ((checkInDate && !isIsoDate(checkInDate)) || (checkOutDate && !isIsoDate(checkOutDate))) {
+    return res.status(400).json({ error: 'Dates must use YYYY-MM-DD format.' });
+  }
+
+  if (checkInDate && checkOutDate && checkOutDate <= checkInDate) {
+    return res.status(400).json({ error: 'Check-out date must be after check-in date.' });
+  }
+
+  const property = db.prepare('SELECT id, title FROM properties WHERE id = ?').get(propertyId);
+  if (!property) {
+    return res.status(404).json({ error: 'Property not found.' });
+  }
+
+  const now = Date.now();
+  const insertResult = db
+    .prepare(
+      `
+        INSERT INTO enquiries (property_id, full_name, email, phone_number, check_in_date, check_out_date, message, status, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, 'new', ?)
+      `
+    )
+    .run(propertyId, fullName, email, phoneNumber, checkInDate || null, checkOutDate || null, message, now);
+
+  sendEnquiryCreatedEmail(insertResult.lastInsertRowid);
+
+  return res.status(201).json({
+    enquiry: {
+      id: insertResult.lastInsertRowid,
+      propertyId,
+      status: 'new',
+    },
+  });
+});
+
+app.get('/api/admin/enquiries', requireAuth, (_req, res) => {
+  const enquiries = db
+    .prepare(
+      `
+        SELECT e.id, e.property_id, e.full_name, e.email, e.phone_number, e.check_in_date, e.check_out_date,
+               e.message, e.status, e.created_at,
+               p.title AS property_title, p.location AS property_location
+        FROM enquiries e
+        JOIN properties p ON p.id = e.property_id
+        ORDER BY e.created_at DESC
+        LIMIT 200
+      `
+    )
+    .all();
+
+  return res.json({ enquiries });
+});
+
+app.put('/api/admin/enquiries/:id/status', requireAuth, (req, res) => {
+  const enquiryId = Number(req.params.id);
+  const nextStatus = String(req.body?.status || '').trim().toLowerCase();
+  const allowedStatuses = new Set(['new', 'contacted', 'closed']);
+
+  if (!Number.isFinite(enquiryId)) {
+    return res.status(400).json({ error: 'Invalid enquiry id.' });
+  }
+
+  if (!allowedStatuses.has(nextStatus)) {
+    return res.status(400).json({ error: 'Invalid enquiry status.' });
+  }
+
+  const updateResult = db
+    .prepare('UPDATE enquiries SET status = ? WHERE id = ?')
+    .run(nextStatus, enquiryId);
+
+  if (!updateResult.changes) {
+    return res.status(404).json({ error: 'Enquiry not found.' });
+  }
+
+  return res.json({ ok: true, enquiryId, status: nextStatus });
+});
+
 app.post('/api/bookings', (req, res) => {
   const propertyId = Number(req.body?.propertyId);
   const fullName = String(req.body?.fullName || '').trim();
@@ -790,7 +1014,7 @@ app.post('/api/bookings', (req, res) => {
     return res.status(400).json({ error: 'Check-in and check-out dates are required.' });
   }
 
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(checkInDate) || !/^\d{4}-\d{2}-\d{2}$/.test(checkOutDate)) {
+  if (!isIsoDate(checkInDate) || !isIsoDate(checkOutDate)) {
     return res.status(400).json({ error: 'Dates must use YYYY-MM-DD format.' });
   }
 

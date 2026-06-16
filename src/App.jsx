@@ -11,7 +11,7 @@ import BookingCheckout from './components/BookingCheckout/BookingCheckout';
 import PaymentResult from './components/PaymentResult/PaymentResult';
 import './components/App.css';
 import defaultProperties from './Data/properties';
-import { trackPageView } from './utils/analytics';
+import { trackEvent, trackPageView } from './utils/analytics';
 import { api } from './utils/api';
 
 const AUTH_TOKEN_STORAGE_KEY = 'amigo-rentals-auth-token';
@@ -63,6 +63,7 @@ const App = () => {
   const [pageParams, setPageParams] = useState(parseHashState().params);
   const [checkoutProperty, setCheckoutProperty] = useState(null);
   const [reconciliationItems, setReconciliationItems] = useState([]);
+  const [enquiryItems, setEnquiryItems] = useState([]);
 
   useEffect(() => {
     const handleHashChange = () => {
@@ -126,6 +127,20 @@ const App = () => {
     }
   };
 
+  const loadEnquiries = async (token) => {
+    if (!token) {
+      setEnquiryItems([]);
+      return;
+    }
+
+    try {
+      const response = await api.getAdminEnquiries(token);
+      setEnquiryItems(Array.isArray(response.enquiries) ? response.enquiries : []);
+    } catch {
+      setEnquiryItems([]);
+    }
+  };
+
   useEffect(() => {
     loadPublicData();
   }, []);
@@ -143,6 +158,7 @@ const App = () => {
         setIsAuthenticated(Boolean(username));
         await loadAdmins(authToken);
         await loadReconciliation(authToken);
+        await loadEnquiries(authToken);
       } catch {
         saveToken(null);
         setAuthToken(null);
@@ -150,6 +166,7 @@ const App = () => {
         setIsAuthenticated(false);
         setAdmins({});
         setReconciliationItems([]);
+        setEnquiryItems([]);
       }
     };
 
@@ -193,6 +210,7 @@ const App = () => {
       setIsAdminMode(true);
       await loadAdmins(nextToken);
       await loadReconciliation(nextToken);
+      await loadEnquiries(nextToken);
       return true;
     } catch {
       return false;
@@ -215,6 +233,7 @@ const App = () => {
     setCurrentAdmin('');
     setAdmins({});
     setReconciliationItems([]);
+    setEnquiryItems([]);
   };
 
   const handleAddAdmin = async (username, password) => {
@@ -246,6 +265,16 @@ const App = () => {
   const handleRefundBooking = async (bookingId, reason) => {
     const response = await api.refundBookingPayment(bookingId, reason, authToken);
     await loadReconciliation(authToken);
+    return response;
+  };
+
+  const handleRefreshEnquiries = async () => {
+    await loadEnquiries(authToken);
+  };
+
+  const handleUpdateEnquiryStatus = async (enquiryId, status) => {
+    const response = await api.updateEnquiryStatus(enquiryId, status, authToken);
+    await loadEnquiries(authToken);
     return response;
   };
 
@@ -281,7 +310,14 @@ const App = () => {
             )}
             <PropertyList
               properties={properties}
-              onBookProperty={(property) => setCheckoutProperty(property)}
+              onBookProperty={(property) => {
+                trackEvent('begin_checkout', {
+                  property_id: property.id,
+                  property_title: property.title,
+                  property_location: property.location,
+                });
+                setCheckoutProperty(property);
+              }}
             />
           </>
         )}
@@ -308,6 +344,9 @@ const App = () => {
             reconciliationItems={reconciliationItems}
             onRefreshReconciliation={() => loadReconciliation(authToken)}
             onRefundBooking={handleRefundBooking}
+            enquiryItems={enquiryItems}
+            onRefreshEnquiries={handleRefreshEnquiries}
+            onUpdateEnquiryStatus={handleUpdateEnquiryStatus}
             onExit={() => setIsAdminMode(false)}
             onLogout={handleAdminLogout}
           />
