@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import S3ImageUploader from './S3ImageUploader';
 import './AdminPanel.css';
 
@@ -20,6 +20,13 @@ const normalizeNumber = (value) => {
   return Number.isNaN(parsed) ? 0 : parsed;
 };
 
+const FOLLOW_UP_HOURS = 12;
+const SOUND_PRESETS = {
+  quiet: { label: 'Quiet', peakGain: 0.018, wave: 'sine' },
+  market: { label: 'Market', peakGain: 0.03, wave: 'triangle' },
+  loud: { label: 'Loud Office', peakGain: 0.055, wave: 'triangle' },
+};
+
 const formatDateTime = (value) => {
   if (!value) {
     return '-';
@@ -29,6 +36,112 @@ const formatDateTime = (value) => {
     dateStyle: 'medium',
     timeStyle: 'short',
   });
+};
+
+const isToday = (timestamp) => {
+  if (!timestamp) {
+    return false;
+  }
+
+  const date = new Date(timestamp);
+  const now = new Date();
+
+  return (
+    date.getFullYear() === now.getFullYear() &&
+    date.getMonth() === now.getMonth() &&
+    date.getDate() === now.getDate()
+  );
+};
+
+const needsFollowUp = (item) => {
+  if (!item || item.status === 'closed' || !item.created_at) {
+    return false;
+  }
+
+  const ageMs = Date.now() - Number(item.created_at);
+  return ageMs > FOLLOW_UP_HOURS * 60 * 60 * 1000;
+};
+
+const getResponseSlaLevel = (item) => {
+  if (!item || item.status === 'closed' || !item.created_at) {
+    return 'closed';
+  }
+
+  const ageMs = Date.now() - Number(item.created_at);
+  if (ageMs >= 24 * 60 * 60 * 1000) {
+    return 'critical';
+  }
+
+  if (ageMs >= FOLLOW_UP_HOURS * 60 * 60 * 1000) {
+    return 'warning';
+  }
+
+  return 'healthy';
+};
+
+const formatRelativeAge = (value) => {
+  if (!value) {
+    return '-';
+  }
+
+  const ageMs = Math.max(0, Date.now() - Number(value));
+  const minutes = Math.floor(ageMs / (60 * 1000));
+  if (minutes < 60) {
+    return `${minutes}m ago`;
+  }
+
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) {
+    return `${hours}h ago`;
+  }
+
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
+};
+
+const playBrandChime = (preset = 'market') => {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  const AudioCtx = window.AudioContext || window.webkitAudioContext;
+  if (!AudioCtx) {
+    return;
+  }
+
+  try {
+    const context = new AudioCtx();
+    const now = context.currentTime;
+    const config = SOUND_PRESETS[preset] || SOUND_PRESETS.market;
+    const gain = context.createGain();
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(config.peakGain, now + 0.015);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.38);
+    gain.connect(context.destination);
+
+    const notes = [
+      { frequency: 659.25, start: 0, duration: 0.11 },
+      { frequency: 783.99, start: 0.12, duration: 0.11 },
+      { frequency: 987.77, start: 0.25, duration: 0.13 },
+    ];
+
+    for (const note of notes) {
+      const oscillator = context.createOscillator();
+      oscillator.type = config.wave;
+      oscillator.frequency.setValueAtTime(note.frequency, now + note.start);
+      oscillator.connect(gain);
+      oscillator.start(now + note.start);
+      oscillator.stop(now + note.start + note.duration);
+    }
+
+    window.setTimeout(() => {
+      context.close().catch(() => {
+        // Ignore close errors.
+      });
+    }, 550);
+  } catch {
+    // Autoplay policies can block audio until user interaction.
+  }
 };
 
 const AdminPanel = ({
@@ -60,6 +173,14 @@ const AdminPanel = ({
   const [refundReason, setRefundReason] = useState('Requested by customer');
   const [enquiryQuery, setEnquiryQuery] = useState('');
   const [enquiryStatusFilter, setEnquiryStatusFilter] = useState('all');
+  const [enquiryQuickFilter, setEnquiryQuickFilter] = useState('all');
+  const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(true);
+  const [soundAlertsEnabled, setSoundAlertsEnabled] = useState(true);
+  const [soundPreset, setSoundPreset] = useState('market');
+  const [lastRefreshAt, setLastRefreshAt] = useState(Date.now());
+  const [newSinceLastRefresh, setNewSinceLastRefresh] = useState(0);
+  const knownEnquiryIdsRef = useRef(new Set());
+  const hasInitializedEnquiriesRef = useRef(false);
 
   useEffect(() => {
     Promise.resolve(onRefreshReconciliation()).catch(() => {
@@ -69,7 +190,53 @@ const AdminPanel = ({
     Promise.resolve(onRefreshEnquiries()).catch(() => {
       // Ignore initial enquiry refresh failures and allow manual retry.
     });
+
+    setLastRefreshAt(Date.now());
   }, []);
+
+  useEffect(() => {
+    if (!hasInitializedEnquiriesRef.current) {
+      knownEnquiryIdsRef.current = new Set(enquiryItems.map((item) => item.id));
+      hasInitializedEnquiriesRef.current = true;
+      return;
+    }
+
+    const knownIds = knownEnquiryIdsRef.current;
+    let freshCount = 0;
+
+    for (const item of enquiryItems) {
+      if (!knownIds.has(item.id)) {
+        freshCount += 1;
+      }
+    }
+
+    if (freshCount > 0) {
+      setNewSinceLastRefresh((previous) => previous + freshCount);
+      if (soundAlertsEnabled) {
+        playBrandChime(soundPreset);
+      }
+    }
+
+    knownEnquiryIdsRef.current = new Set(enquiryItems.map((item) => item.id));
+  }, [enquiryItems, soundAlertsEnabled, soundPreset]);
+
+  useEffect(() => {
+    if (!autoRefreshEnabled) {
+      return undefined;
+    }
+
+    const intervalId = setInterval(() => {
+      Promise.resolve(onRefreshEnquiries())
+        .then(() => {
+          setLastRefreshAt(Date.now());
+        })
+        .catch(() => {
+          // Skip toast-like messaging for background refresh failures.
+        });
+    }, 60000);
+
+    return () => clearInterval(intervalId);
+  }, [autoRefreshEnabled, onRefreshEnquiries]);
 
   const selectedProperty = useMemo(
     () => properties.find((property) => property.id === selectedId),
@@ -82,6 +249,9 @@ const AdminPanel = ({
       new: 0,
       contacted: 0,
       closed: 0,
+      followUp: 0,
+      today: 0,
+      critical: 0,
     };
 
     for (const item of enquiryItems) {
@@ -91,6 +261,18 @@ const AdminPanel = ({
         metrics.contacted += 1;
       } else if (item.status === 'closed') {
         metrics.closed += 1;
+      }
+
+      if (isToday(item.created_at)) {
+        metrics.today += 1;
+      }
+
+      if (needsFollowUp(item)) {
+        metrics.followUp += 1;
+      }
+
+      if (getResponseSlaLevel(item) === 'critical') {
+        metrics.critical += 1;
       }
     }
 
@@ -102,6 +284,18 @@ const AdminPanel = ({
 
     return enquiryItems.filter((item) => {
       if (enquiryStatusFilter !== 'all' && item.status !== enquiryStatusFilter) {
+        return false;
+      }
+
+      if (enquiryQuickFilter === 'new' && item.status !== 'new') {
+        return false;
+      }
+
+      if (enquiryQuickFilter === 'followup' && !needsFollowUp(item)) {
+        return false;
+      }
+
+      if (enquiryQuickFilter === 'today' && !isToday(item.created_at)) {
         return false;
       }
 
@@ -122,7 +316,7 @@ const AdminPanel = ({
 
       return searchHaystack.includes(normalizedQuery);
     });
-  }, [enquiryItems, enquiryQuery, enquiryStatusFilter]);
+  }, [enquiryItems, enquiryQuery, enquiryStatusFilter, enquiryQuickFilter]);
 
   const applyPropertyToForm = (property) => {
     if (!property) {
@@ -253,6 +447,8 @@ const AdminPanel = ({
   const handleRefreshEnquiries = async () => {
     try {
       await Promise.resolve(onRefreshEnquiries());
+      setLastRefreshAt(Date.now());
+      setNewSinceLastRefresh(0);
       setMessage('Enquiries refreshed.');
     } catch (error) {
       setMessage(error.message || 'Unable to refresh enquiries.');
@@ -262,6 +458,7 @@ const AdminPanel = ({
   const handleEnquiryStatusUpdate = async (enquiryId, status) => {
     try {
       await Promise.resolve(onUpdateEnquiryStatus(enquiryId, status));
+      setLastRefreshAt(Date.now());
       setMessage(`Enquiry #${enquiryId} marked as ${status}.`);
     } catch (error) {
       setMessage(error.message || 'Unable to update enquiry status.');
@@ -557,7 +754,87 @@ const AdminPanel = ({
               <span className='metric-pill metric-new'>New: {enquiryMetrics.new}</span>
               <span className='metric-pill metric-contacted'>Contacted: {enquiryMetrics.contacted}</span>
               <span className='metric-pill metric-closed'>Closed: {enquiryMetrics.closed}</span>
+              <span className='metric-pill metric-followup'>Needs Follow-up: {enquiryMetrics.followUp}</span>
+              <span className='metric-pill metric-critical'>Critical: {enquiryMetrics.critical}</span>
+              <span className='metric-pill metric-today'>Today: {enquiryMetrics.today}</span>
               <span className='metric-pill'>Showing: {filteredEnquiries.length}</span>
+            </div>
+
+            <div className='enquiry-refresh-bar'>
+              <p>
+                Last sync: {formatDateTime(lastRefreshAt)}
+                {newSinceLastRefresh > 0 ? ` | New since last manual refresh: ${newSinceLastRefresh}` : ''}
+              </p>
+              <div className='enquiry-refresh-controls'>
+                <label className='checkbox-row'>
+                  <input
+                    type='checkbox'
+                    checked={autoRefreshEnabled}
+                    onChange={(event) => setAutoRefreshEnabled(event.target.checked)}
+                  />
+                  Auto-refresh every 60s
+                </label>
+                <label className='checkbox-row'>
+                  <input
+                    type='checkbox'
+                    checked={soundAlertsEnabled}
+                    onChange={(event) => setSoundAlertsEnabled(event.target.checked)}
+                  />
+                  Market chime alerts
+                </label>
+                {soundAlertsEnabled && (
+                  <div className='sound-preset-controls'>
+                    {Object.entries(SOUND_PRESETS).map(([key, config]) => (
+                      <button
+                        key={key}
+                        type='button'
+                        className={soundPreset === key ? 'is-active' : ''}
+                        onClick={() => setSoundPreset(key)}
+                      >
+                        {config.label}
+                      </button>
+                    ))}
+                    <button
+                      type='button'
+                      className='preview'
+                      onClick={() => playBrandChime(soundPreset)}
+                    >
+                      Preview
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className='enquiry-quick-filters'>
+              <button
+                type='button'
+                className={enquiryQuickFilter === 'all' ? 'is-active' : ''}
+                onClick={() => setEnquiryQuickFilter('all')}
+              >
+                All
+              </button>
+              <button
+                type='button'
+                className={enquiryQuickFilter === 'new' ? 'is-active' : ''}
+                onClick={() => setEnquiryQuickFilter('new')}
+              >
+                New Only
+              </button>
+              <button
+                type='button'
+                className={enquiryQuickFilter === 'followup' ? 'is-active' : ''}
+                onClick={() => setEnquiryQuickFilter('followup')}
+              >
+                Needs Follow-up
+              </button>
+              <button
+                type='button'
+                className={enquiryQuickFilter === 'today' ? 'is-active' : ''}
+                onClick={() => setEnquiryQuickFilter('today')}
+              >
+                Received Today
+              </button>
             </div>
 
             <div className='reconciliation-table-wrap'>
@@ -566,6 +843,7 @@ const AdminPanel = ({
                   <tr>
                     <th>ID</th>
                     <th>Received</th>
+                    <th>Response Age</th>
                     <th>Property</th>
                     <th>Guest</th>
                     <th>Dates</th>
@@ -577,13 +855,18 @@ const AdminPanel = ({
                 <tbody>
                   {filteredEnquiries.length === 0 && (
                     <tr>
-                      <td colSpan='8'>No enquiries match the current filters.</td>
+                      <td colSpan='9'>No enquiries match the current filters.</td>
                     </tr>
                   )}
                   {filteredEnquiries.map((item) => (
                     <tr key={item.id}>
                       <td>#{item.id}</td>
                       <td>{formatDateTime(item.created_at)}</td>
+                      <td>
+                        <span className={`sla-badge sla-${getResponseSlaLevel(item)}`}>
+                          {formatRelativeAge(item.created_at)}
+                        </span>
+                      </td>
                       <td>{item.property_title}<br />{item.property_location}</td>
                       <td>{item.full_name}<br />{item.email}<br />{item.phone_number || '-'}</td>
                       <td>{item.check_in_date || '-'} to {item.check_out_date || '-'}</td>
@@ -592,6 +875,7 @@ const AdminPanel = ({
                         <span className={`enquiry-status enquiry-${item.status}`}>
                           {item.status}
                         </span>
+                        {needsFollowUp(item) && <span className='enquiry-sla-warning'>Overdue</span>}
                       </td>
                       <td>
                         <div className='enquiry-actions'>

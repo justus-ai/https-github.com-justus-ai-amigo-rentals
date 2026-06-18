@@ -164,6 +164,21 @@ header {
 .admin-item button:hover {
     filter: brightness(0.95);
 }
+
+.contact-link {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    color: white;
+    text-decoration: none;
+    transition: color 0.2s, opacity 0.2s;
+}
+
+.contact-link:hover {
+    color: #2CDEB6;
+    opacity: 0.9;
+}
+
 .brand {
     font-size: 1.5rem;
     

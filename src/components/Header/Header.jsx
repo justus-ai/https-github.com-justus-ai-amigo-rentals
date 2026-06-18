@@ -1,6 +1,6 @@
 import React from 'react';
 import './Header.css';
-import { Phone, Mail } from 'lucide-react';
+import { Phone, Mail, MessageCircle } from 'lucide-react';
 
 const Header = ({
   contactPhone,
@@ -31,6 +31,12 @@ const Header = ({
     <header className="header">
       <div className='item brand'>
         <img src="/images/amigologo.png" alt="Amigo Rentals Logo" className="logo-img-full" />
+      </div>
+      <div className='item'>
+        <a href={`https://wa.me/${contactPhone.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" className="contact-link">
+          <MessageCircle className='icon' />
+          <span>Chat with Antony</span>
+        </a>
       </div>
       <div className='item'>
         <Phone className='icon' />

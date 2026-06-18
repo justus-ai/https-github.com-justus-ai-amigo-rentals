@@ -113,6 +113,7 @@
 }
 
 .admin-form input,
+.admin-form select,
 .admin-form textarea {
   border: 1px solid #9ca3af;
   border-radius: 0.5rem;
@@ -195,6 +196,187 @@
   text-transform: uppercase;
 }
 
+.enquiry-toolbar {
+  display: grid;
+  grid-template-columns: minmax(240px, 1fr) minmax(160px, 220px);
+  gap: 0.6rem;
+}
+
+.enquiry-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.metric-pill {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  border: 1px solid #d1d5db;
+  background: #f9fafb;
+  color: #111827;
+  padding: 0.2rem 0.6rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.metric-new {
+  border-color: #fecaca;
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.metric-contacted {
+  border-color: #bfdbfe;
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.metric-closed {
+  border-color: #bbf7d0;
+  background: #dcfce7;
+  color: #166534;
+}
+
+.metric-followup {
+  border-color: #fed7aa;
+  background: #ffedd5;
+  color: #9a3412;
+}
+
+.metric-critical {
+  border-color: #fecaca;
+  background: #fee2e2;
+  color: #7f1d1d;
+}
+
+.metric-today {
+  border-color: #ddd6fe;
+  background: #ede9fe;
+  color: #5b21b6;
+}
+
+.enquiry-quick-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.enquiry-quick-filters button {
+  border: 1px solid #d1d5db;
+  border-radius: 999px;
+  background: #fff;
+  color: #111827;
+  padding: 0.3rem 0.7rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.enquiry-quick-filters button.is-active {
+  border-color: #111827;
+  background: #111827;
+  color: #fff;
+}
+
+.enquiry-sla-warning {
+  display: inline-block;
+  margin-left: 0.35rem;
+  border-radius: 999px;
+  background: #fff7ed;
+  border: 1px solid #fdba74;
+  color: #9a3412;
+  padding: 0.1rem 0.45rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.enquiry-refresh-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.6rem;
+  background: #f9fafb;
+  padding: 0.45rem 0.6rem;
+}
+
+.enquiry-refresh-bar p {
+  margin: 0;
+  color: #374151;
+  font-size: 0.88rem;
+}
+
+.enquiry-refresh-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  flex-wrap: wrap;
+}
+
+.sound-preset-controls {
+  display: inline-flex;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.sound-preset-controls button {
+  border: 1px solid #d1d5db;
+  border-radius: 999px;
+  background: #fff;
+  color: #111827;
+  padding: 0.22rem 0.6rem;
+  font-size: 0.76rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.sound-preset-controls button.is-active {
+  border-color: #111827;
+  background: #111827;
+  color: #fff;
+}
+
+.sound-preset-controls button.preview {
+  border-color: #0f766e;
+  color: #0f766e;
+}
+
+.sla-badge {
+  display: inline-block;
+  border-radius: 999px;
+  padding: 0.18rem 0.55rem;
+  font-size: 0.74rem;
+  font-weight: 700;
+  border: 1px solid transparent;
+}
+
+.sla-healthy {
+  background: #dcfce7;
+  color: #166534;
+  border-color: #86efac;
+}
+
+.sla-warning {
+  background: #ffedd5;
+  color: #9a3412;
+  border-color: #fdba74;
+}
+
+.sla-critical {
+  background: #fee2e2;
+  color: #991b1b;
+  border-color: #fca5a5;
+}
+
+.sla-closed {
+  background: #e5e7eb;
+  color: #374151;
+  border-color: #d1d5db;
+}
+
 .enquiry-new {
   background: #fee2e2;
   color: #991b1b;
@@ -240,6 +422,10 @@
 
 @media (max-width: 600px) {
   .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .enquiry-toolbar {
     grid-template-columns: 1fr;
   }
 }
