@@ -35,7 +35,7 @@ const Header = ({
       <div className='item'>
         <a href={`https://wa.me/${contactPhone.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" className="contact-link">
           <MessageCircle className='icon' />
-          <span>Chat with Antony</span>
+          <span>Chat with Anthony</span>
         </a>
       </div>
       <div className='item'>

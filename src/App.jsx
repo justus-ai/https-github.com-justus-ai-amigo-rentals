@@ -51,6 +51,9 @@ const toAdminMap = (usernames = []) =>
     return result;
   }, {});
 
+const getAuthUsername = (payload = {}) =>
+  String(payload?.user?.username || payload?.username || payload?.admin?.username || '').trim();
+
 const App = () => {
   const [properties, setProperties] = useState(defaultProperties);
   const [siteContent, setSiteContent] = useState(DEFAULT_SITE_CONTENT);
@@ -153,9 +156,9 @@ const App = () => {
 
       try {
         const response = await api.getSession(authToken);
-        const username = response.user?.username || '';
+        const username = getAuthUsername(response);
         setCurrentAdmin(username);
-        setIsAuthenticated(Boolean(username));
+        setIsAuthenticated(true);
         await loadAdmins(authToken);
         await loadReconciliation(authToken);
         await loadEnquiries(authToken);
@@ -202,11 +205,14 @@ const App = () => {
     try {
       const response = await api.login(username, password);
       const nextToken = response.token;
-      const nextAdmin = response.user?.username || '';
+      const nextAdmin = getAuthUsername(response);
+      if (!nextToken) {
+        return false;
+      }
       setAuthToken(nextToken);
       saveToken(nextToken);
       setCurrentAdmin(nextAdmin);
-      setIsAuthenticated(Boolean(nextAdmin));
+      setIsAuthenticated(true);
       setIsAdminMode(true);
       await loadAdmins(nextToken);
       await loadReconciliation(nextToken);
