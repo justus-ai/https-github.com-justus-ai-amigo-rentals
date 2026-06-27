@@ -5,14 +5,29 @@ const AdminLogin = ({ onLogin, onCancel }) => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-
-    const success = await Promise.resolve(onLogin(username, password));
-    if (!success) {
-      setError('Invalid username or password.');
+    if (isSubmitting) {
       return;
+    }
+
+    setIsSubmitting(true);
+    setError('');
+
+    try {
+      const result = await Promise.resolve(onLogin(username, password));
+      const success = typeof result === 'object' && result !== null ? Boolean(result.ok) : Boolean(result);
+      const message = typeof result === 'object' && result !== null ? String(result.message || '').trim() : '';
+
+      if (!success) {
+        setError(message || 'Unable to sign in. Check your credentials and API connection.');
+      }
+    } catch {
+      setError('Unable to sign in. Please try again.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -56,8 +71,10 @@ const AdminLogin = ({ onLogin, onCancel }) => {
           {error && <p className='admin-login-error'>{error}</p>}
 
           <div className='admin-login-actions'>
-            <button type='submit'>Log In</button>
-            <button type='button' className='secondary' onClick={onCancel}>
+            <button type='submit' disabled={isSubmitting}>
+              {isSubmitting ? 'Logging In...' : 'Log In'}
+            </button>
+            <button type='button' className='secondary' onClick={onCancel} disabled={isSubmitting}>
               Back to Website
             </button>
           </div>

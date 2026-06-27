@@ -197,8 +197,15 @@ if (propertyCount === 0) {
 
 const adminCount = db.prepare('SELECT COUNT(*) AS count FROM admins').get().count;
 if (adminCount === 0) {
-  const username = (process.env.ADMIN_INITIAL_USERNAME || 'justus').trim().toLowerCase();
-  const password = process.env.ADMIN_INITIAL_PASSWORD || 'ChangeMe123!';
+  const legacyUsername = process.env.ADMIN_USERNAME || '';
+  const legacyPassword = process.env.ADMIN_PASSWORD || '';
+  const username = (process.env.ADMIN_INITIAL_USERNAME || legacyUsername || 'justus').trim().toLowerCase();
+  const password = process.env.ADMIN_INITIAL_PASSWORD || legacyPassword || 'ChangeMe123!';
+
+  if ((!process.env.ADMIN_INITIAL_USERNAME && legacyUsername) || (!process.env.ADMIN_INITIAL_PASSWORD && legacyPassword)) {
+    console.warn('Using legacy ADMIN_USERNAME/ADMIN_PASSWORD env vars. Prefer ADMIN_INITIAL_USERNAME/ADMIN_INITIAL_PASSWORD.');
+  }
+
   const passwordHash = bcrypt.hashSync(password, 10);
   db.prepare(
     'INSERT INTO admins (username, password_hash, role, created_at) VALUES (?, ?, ?, ?)'

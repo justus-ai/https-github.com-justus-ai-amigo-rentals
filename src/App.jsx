@@ -207,7 +207,7 @@ const App = () => {
       const nextToken = response.token;
       const nextAdmin = getAuthUsername(response);
       if (!nextToken) {
-        return false;
+        return { ok: false, message: 'Login succeeded but no session token was returned.' };
       }
       setAuthToken(nextToken);
       saveToken(nextToken);
@@ -217,9 +217,12 @@ const App = () => {
       await loadAdmins(nextToken);
       await loadReconciliation(nextToken);
       await loadEnquiries(nextToken);
-      return true;
-    } catch {
-      return false;
+      return { ok: true };
+    } catch (error) {
+      return {
+        ok: false,
+        message: error?.message || 'Unable to log in right now. Please try again.',
+      };
     }
   };
 

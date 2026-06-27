@@ -2,6 +2,12 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (import.meta.env.DEV ?
 
 const buildUrl = (path) => `${API_BASE_URL}${path}`;
 
+const createHttpError = (message, status) => {
+  const error = new Error(message);
+  error.status = status;
+  return error;
+};
+
 const request = async (path, { method = 'GET', body, token } = {}) => {
   const headers = {
     'Content-Type': 'application/json',
@@ -11,15 +17,29 @@ const request = async (path, { method = 'GET', body, token } = {}) => {
     headers.Authorization = `Bearer ${token}`;
   }
 
-  const response = await fetch(buildUrl(path), {
-    method,
-    headers,
-    body: body ? JSON.stringify(body) : undefined,
-  });
+  let response;
+  try {
+    response = await fetch(buildUrl(path), {
+      method,
+      headers,
+      body: body ? JSON.stringify(body) : undefined,
+    });
+  } catch {
+    const originHint = API_BASE_URL || window.location.origin;
+    throw new Error(`Network error: could not reach API at ${originHint}.`);
+  }
 
-  const payload = await response.json().catch(() => ({}));
+  const contentType = response.headers.get('content-type') || '';
+  const isJson = contentType.includes('application/json');
+  const payload = isJson ? await response.json().catch(() => ({})) : {};
+  const text = isJson ? '' : await response.text().catch(() => '');
+
   if (!response.ok) {
-    throw new Error(payload.error || 'Request failed');
+    const message =
+      (payload && typeof payload.error === 'string' && payload.error.trim()) ||
+      text.trim() ||
+      `Request failed (${response.status})`;
+    throw createHttpError(message, response.status);
   }
 
   return payload;
@@ -48,7 +68,17 @@ export const api = {
   updateSiteContent: (siteContent, token) =>
     request('/api/site-content', { method: 'PUT', body: siteContent, token }),
 
-  login: (username, password) => request('/api/auth/login', { method: 'POST', body: { username, password } }),
+  login: async (username, password) => {
+    try {
+      return await request('/api/auth/login', { method: 'POST', body: { username, password } });
+    } catch (error) {
+      if (error?.status === 401) {
+        throw new Error('Invalid username or password.');
+      }
+
+      throw error;
+    }
+  },
   getSession: (token) => request('/api/auth/session', { token }),
   logout: (token) => request('/api/auth/logout', { method: 'POST', token }),
 
