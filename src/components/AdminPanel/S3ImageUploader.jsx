@@ -1,6 +1,25 @@
 import React, { useRef } from 'react';
 
-const API_BASE_URL = String(import.meta.env.VITE_API_BASE_URL || '').trim();
+const rawApiBaseUrl = String(import.meta.env.VITE_API_BASE_URL || '').trim();
+const HOST_FALLBACK_API_BASE_URLS = {
+  'amigorentals.co.ke': 'https://https-github-com-justus-ai-amigo-rentals-8cak.onrender.com',
+  'www.amigorentals.co.ke': 'https://https-github-com-justus-ai-amigo-rentals-8cak.onrender.com',
+};
+
+const resolveApiBaseUrl = () => {
+  if (rawApiBaseUrl) {
+    return rawApiBaseUrl;
+  }
+
+  if (typeof window === 'undefined') {
+    return '';
+  }
+
+  const hostname = String(window.location.hostname || '').toLowerCase();
+  return HOST_FALLBACK_API_BASE_URLS[hostname] || '';
+};
+
+const API_BASE_URL = resolveApiBaseUrl().replace(/\/$/, '');
 const AUTH_TOKEN_STORAGE_KEY = 'amigo-rentals-auth-token';
 
 // Helper to get a pre-signed URL from your backend
@@ -10,8 +29,29 @@ async function getPresignedUrl(file) {
   const res = await fetch(`${API_BASE_URL}/sign-s3?filename=${encodeURIComponent(file.name)}&filetype=${encodeURIComponent(file.type)}`, {
     headers,
   });
-  if (!res.ok) throw new Error('Failed to get pre-signed URL');
-  const { url } = await res.json();
+
+  const contentType = res.headers.get('content-type') || '';
+  const isJson = contentType.includes('application/json');
+  const payload = isJson ? await res.json().catch(() => ({})) : {};
+  const text = isJson ? '' : await res.text().catch(() => '');
+  const looksLikeHtml = !isJson && /<!doctype html>|<html[\s>]/i.test(text);
+
+  if (looksLikeHtml) {
+    throw new Error(`Upload signer returned a web page. Check VITE_API_BASE_URL (current: ${API_BASE_URL || window.location.origin}).`);
+  }
+
+  if (!res.ok) {
+    const message =
+      (payload && typeof payload.error === 'string' && payload.error.trim()) ||
+      text.trim() ||
+      'Failed to get pre-signed URL';
+    throw new Error(message);
+  }
+
+  const { url } = payload;
+  if (!url) {
+    throw new Error('Upload signer response is missing a URL.');
+  }
   return url;
 }
 
