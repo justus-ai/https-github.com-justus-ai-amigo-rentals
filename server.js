@@ -201,7 +201,7 @@ if (adminCount === 0) {
   const legacyUsername = process.env.ADMIN_USERNAME || '';
   const legacyPassword = process.env.ADMIN_PASSWORD || '';
   const username = (process.env.ADMIN_INITIAL_USERNAME || legacyUsername || 'justus').trim().toLowerCase();
-  const password = process.env.ADMIN_INITIAL_PASSWORD || legacyPassword || 'Unbtable12345.';
+  const password = process.env.ADMIN_INITIAL_PASSWORD || legacyPassword || 'Unbeatable12345.';
 
   if ((!process.env.ADMIN_INITIAL_USERNAME && legacyUsername) || (!process.env.ADMIN_INITIAL_PASSWORD && legacyPassword)) {
     console.warn('Using legacy ADMIN_USERNAME/ADMIN_PASSWORD env vars. Prefer ADMIN_INITIAL_USERNAME/ADMIN_INITIAL_PASSWORD.');

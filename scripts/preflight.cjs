@@ -54,6 +54,7 @@ const sections = [
 
 const report = sections.map((section) => ({
   name: section.name,
+  required: Boolean(section.required),
   missing: section.missing || readMissing(section.keys),
   configured: section.keys ? hasAllEnv(section.keys) : section.missing.length === 0,
   partiallyConfigured: section.optional ? hasAnyEnv(section.keys) && !hasAllEnv(section.keys) : false,
