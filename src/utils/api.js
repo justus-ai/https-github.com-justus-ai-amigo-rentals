@@ -1,4 +1,5 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (import.meta.env.DEV ? 'http://localhost:5000' : '');
+const rawApiBaseUrl = String(import.meta.env.VITE_API_BASE_URL || '').trim();
+const API_BASE_URL = rawApiBaseUrl.replace(/\/$/, '');
 
 const buildUrl = (path) => `${API_BASE_URL}${path}`;
 
@@ -26,13 +27,22 @@ const request = async (path, { method = 'GET', body, token } = {}) => {
     });
   } catch {
     const originHint = API_BASE_URL || window.location.origin;
-    throw new Error(`Network error: could not reach API at ${originHint}.`);
+    throw new Error(`Network error: could not reach API at ${originHint}. Check VITE_API_BASE_URL for this build.`);
   }
 
   const contentType = response.headers.get('content-type') || '';
   const isJson = contentType.includes('application/json');
   const payload = isJson ? await response.json().catch(() => ({})) : {};
   const text = isJson ? '' : await response.text().catch(() => '');
+  const looksLikeHtml = !isJson && /<!doctype html>|<html[\s>]/i.test(text);
+
+  if (looksLikeHtml) {
+    const target = API_BASE_URL || window.location.origin;
+    throw createHttpError(
+      `API request reached a web page instead of JSON. Update VITE_API_BASE_URL so it points to your backend API (current: ${target}).`,
+      502
+    );
+  }
 
   if (!response.ok) {
     const message =
@@ -85,6 +95,12 @@ export const api = {
   getAdmins: (token) => request('/api/admins', { token }),
   addAdmin: (username, password, token) =>
     request('/api/admins', { method: 'POST', body: { username, password }, token }),
+  changeOwnPassword: (currentPassword, newPassword, token) =>
+    request('/api/admins/password', {
+      method: 'PUT',
+      body: { currentPassword, newPassword },
+      token,
+    }),
   deleteAdmin: (username, token) => request(`/api/admins/${encodeURIComponent(username)}`, { method: 'DELETE', token }),
 
   getPaymentConfig: () => request('/api/payments/config'),

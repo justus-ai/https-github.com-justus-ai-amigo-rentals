@@ -1,6 +1,6 @@
 import React, { useRef } from 'react';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (import.meta.env.DEV ? 'http://localhost:5000' : '');
+const API_BASE_URL = String(import.meta.env.VITE_API_BASE_URL || '').trim();
 const AUTH_TOKEN_STORAGE_KEY = 'amigo-rentals-auth-token';
 
 // Helper to get a pre-signed URL from your backend

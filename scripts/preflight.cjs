@@ -35,6 +35,7 @@ const requiredSmtp = [
 
 const readMissing = (keys) => keys.filter((key) => !String(process.env[key] || '').trim());
 const hasAnyEnv = (keys) => keys.some((key) => String(process.env[key] || '').trim());
+const hasAllEnv = (keys) => keys.every((key) => String(process.env[key] || '').trim());
 
 const coreMissing = readMissing(requiredAlways);
 if (!hasAnyEnv(['ADMIN_INITIAL_USERNAME', 'ADMIN_USERNAME'])) {
@@ -45,34 +46,40 @@ if (!hasAnyEnv(['ADMIN_INITIAL_PASSWORD', 'ADMIN_PASSWORD'])) {
 }
 
 const sections = [
-  { name: 'core', missing: coreMissing },
-  { name: 'stripe', keys: requiredStripe },
-  { name: 'mpesa', keys: requiredMpesa },
-  { name: 'smtp', keys: requiredSmtp },
+  { name: 'core', missing: coreMissing, required: true },
+  { name: 'stripe', keys: requiredStripe, optional: true },
+  { name: 'mpesa', keys: requiredMpesa, optional: true },
+  { name: 'smtp', keys: requiredSmtp, optional: true },
 ];
 
 const report = sections.map((section) => ({
   name: section.name,
   missing: section.missing || readMissing(section.keys),
+  configured: section.keys ? hasAllEnv(section.keys) : section.missing.length === 0,
+  partiallyConfigured: section.optional ? hasAnyEnv(section.keys) && !hasAllEnv(section.keys) : false,
 }));
 
 const hasMissing = report.some((section) => section.missing.length > 0);
+const hasCriticalMissing = report.some((section) => section.required && section.missing.length > 0);
+const hasPartialOptionalConfig = report.some((section) => section.partiallyConfigured);
 
 console.log(`Preflight mode: ${mode}`);
 for (const section of report) {
   if (section.missing.length === 0) {
     console.log(`- ${section.name}: ok`);
+  } else if (section.partiallyConfigured) {
+    console.log(`- ${section.name}: partially configured, missing ${section.missing.join(', ')}`);
   } else {
     console.log(`- ${section.name}: missing ${section.missing.join(', ')}`);
   }
 }
 
 const shouldFail = strict || mode === 'production';
-if (hasMissing && shouldFail) {
+if ((hasCriticalMissing || hasPartialOptionalConfig) && shouldFail) {
   console.error('Preflight failed: missing required configuration values.');
   process.exit(1);
 }
 
 if (hasMissing) {
-  console.warn('Preflight warning: missing values found, but failing is disabled in non-production mode.');
+  console.warn('Preflight warning: optional integrations are not configured; related features will be disabled.');
 }

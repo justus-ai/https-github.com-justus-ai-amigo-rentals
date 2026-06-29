@@ -154,6 +154,7 @@ const AdminPanel = ({
   onUpdateProperty,
   onDeleteProperty,
   onAddAdmin,
+  onChangeOwnPassword,
   onDeleteAdmin,
   reconciliationItems,
   onRefreshReconciliation,
@@ -170,6 +171,10 @@ const AdminPanel = ({
   const [siteForm, setSiteForm] = useState(siteContent);
   const [newAdminUsername, setNewAdminUsername] = useState('');
   const [newAdminPassword, setNewAdminPassword] = useState('');
+  const [newAdminPasswordConfirm, setNewAdminPasswordConfirm] = useState('');
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [nextPassword, setNextPassword] = useState('');
+  const [nextPasswordConfirm, setNextPasswordConfirm] = useState('');
   const [refundReason, setRefundReason] = useState('Requested by customer');
   const [enquiryQuery, setEnquiryQuery] = useState('');
   const [enquiryStatusFilter, setEnquiryStatusFilter] = useState('all');
@@ -413,11 +418,46 @@ const AdminPanel = ({
 
   const handleAddAdminSubmit = async (event) => {
     event.preventDefault();
+
+    if (newAdminPassword.length < 8) {
+      setMessage('New admin password must be at least 8 characters long.');
+      return;
+    }
+
+    if (newAdminPassword !== newAdminPasswordConfirm) {
+      setMessage('New admin password confirmation does not match.');
+      return;
+    }
+
     const result = await Promise.resolve(onAddAdmin(newAdminUsername, newAdminPassword));
     setMessage(result.message);
     if (result.ok) {
       setNewAdminUsername('');
       setNewAdminPassword('');
+      setNewAdminPasswordConfirm('');
+    }
+  };
+
+  const handlePasswordChangeSubmit = async (event) => {
+    event.preventDefault();
+
+    if (nextPassword.length < 8) {
+      setMessage('Your new password must be at least 8 characters long.');
+      return;
+    }
+
+    if (nextPassword !== nextPasswordConfirm) {
+      setMessage('New password confirmation does not match.');
+      return;
+    }
+
+    const result = await Promise.resolve(onChangeOwnPassword(currentPassword, nextPassword));
+    setMessage(result.message);
+
+    if (result.ok) {
+      setCurrentPassword('');
+      setNextPassword('');
+      setNextPasswordConfirm('');
     }
   };
 
@@ -618,6 +658,7 @@ const AdminPanel = ({
             {!canManageAdmins && (
               <p className='note'>Only super user justus can manage admin accounts.</p>
             )}
+            <p className='note'>Usernames are saved in lowercase. Passwords are stored exactly as typed, including spaces.</p>
 
             <form className='form-grid' onSubmit={handleAddAdminSubmit}>
               <label>
@@ -634,6 +675,15 @@ const AdminPanel = ({
                   type='password'
                   value={newAdminPassword}
                   onChange={(event) => setNewAdminPassword(event.target.value)}
+                  disabled={!canManageAdmins}
+                />
+              </label>
+              <label>
+                Confirm Admin Password
+                <input
+                  type='password'
+                  value={newAdminPasswordConfirm}
+                  onChange={(event) => setNewAdminPasswordConfirm(event.target.value)}
                   disabled={!canManageAdmins}
                 />
               </label>
@@ -659,6 +709,41 @@ const AdminPanel = ({
                   </li>
                 ))}
             </ul>
+          </section>
+
+          <section className='admin-form'>
+            <h3>Change Your Password</h3>
+            <p className='note'>Use this after the first login so you always know the exact password stored for your account.</p>
+
+            <form className='form-grid' onSubmit={handlePasswordChangeSubmit}>
+              <label>
+                Current Password
+                <input
+                  type='password'
+                  value={currentPassword}
+                  onChange={(event) => setCurrentPassword(event.target.value)}
+                />
+              </label>
+              <label>
+                New Password
+                <input
+                  type='password'
+                  value={nextPassword}
+                  onChange={(event) => setNextPassword(event.target.value)}
+                />
+              </label>
+              <label>
+                Confirm New Password
+                <input
+                  type='password'
+                  value={nextPasswordConfirm}
+                  onChange={(event) => setNextPasswordConfirm(event.target.value)}
+                />
+              </label>
+              <div className='editor-actions'>
+                <button type='submit'>Update Password</button>
+              </div>
+            </form>
           </section>
 
           <section className='admin-form'>

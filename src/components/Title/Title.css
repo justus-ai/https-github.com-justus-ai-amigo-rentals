@@ -1,6 +1,5 @@
 .title-section {
-  
-  margin: 1.25rem 0;
+  margin: 1.1rem 0 0.75rem;
   text-align: center;
 }
 .title-section h1,
@@ -16,9 +15,14 @@
 }
 
 @media (max-width: 600px) {
+  .title-section {
+    margin: 0.7rem 0 0.45rem;
+  }
+
   .title-section h1,
   .title-section h2 {
-    font-size: 1.5rem;
-    padding: 0.4em;
+    font-size: 1.28rem;
+    padding: 0.32em 0.5em;
+    border-bottom-width: 0.1rem;
   }
 }

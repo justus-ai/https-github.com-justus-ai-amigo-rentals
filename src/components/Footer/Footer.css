@@ -89,6 +89,10 @@
 }
 
 @media (max-width: 800px) {
+  .footer {
+    position: static;
+  }
+
   .footer-inner {
     grid-template-columns: 1fr;
     gap: 0.9rem;

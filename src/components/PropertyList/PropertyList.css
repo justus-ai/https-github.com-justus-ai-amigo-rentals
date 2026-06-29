@@ -1,10 +1,21 @@
 .property-list {
   padding: 1.25rem;
-  border: 1px solid #ccc;
-  border-radius: 6px;
+  border: 1px solid #e5e7eb;
+  border-radius: 1rem;
   text-align: center;
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
   gap: 1.25rem;
+  background: #fcfcfd;
+}
+
+@media (max-width: 800px) {
+  .property-list {
+    padding: 0.85rem 0.75rem 1rem;
+    gap: 0.85rem;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+  }
 }

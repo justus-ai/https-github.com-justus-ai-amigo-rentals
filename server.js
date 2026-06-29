@@ -13,6 +13,7 @@ const Database = require('better-sqlite3');
 require('dotenv').config();
 
 const app = express();
+app.set('trust proxy', 1);
 const corsOrigins = (process.env.CORS_ORIGINS || '')
   .split(',')
   .map((origin) => origin.trim())
@@ -139,7 +140,7 @@ db.exec(`
 
 const defaultSiteContent = {
   brand_name: 'Amigo Rentals',
-  contact_phone: '00254790443776',
+  contact_phone: '0790443776',
   contact_email: 'info@amigorentals.com',
   page_title: 'Rental Properties',
 };
@@ -200,7 +201,7 @@ if (adminCount === 0) {
   const legacyUsername = process.env.ADMIN_USERNAME || '';
   const legacyPassword = process.env.ADMIN_PASSWORD || '';
   const username = (process.env.ADMIN_INITIAL_USERNAME || legacyUsername || 'justus').trim().toLowerCase();
-  const password = process.env.ADMIN_INITIAL_PASSWORD || legacyPassword || 'ChangeMe123!';
+  const password = process.env.ADMIN_INITIAL_PASSWORD || legacyPassword || 'Unbtable12345.';
 
   if ((!process.env.ADMIN_INITIAL_USERNAME && legacyUsername) || (!process.env.ADMIN_INITIAL_PASSWORD && legacyPassword)) {
     console.warn('Using legacy ADMIN_USERNAME/ADMIN_PASSWORD env vars. Prefer ADMIN_INITIAL_USERNAME/ADMIN_INITIAL_PASSWORD.');
@@ -850,6 +851,10 @@ app.post('/api/admins', requireAuth, requireSuperAdmin, (req, res) => {
     return res.status(400).json({ error: 'Username and password are required.' });
   }
 
+  if (password.length < 8) {
+    return res.status(400).json({ error: 'Password must be at least 8 characters long.' });
+  }
+
   const existing = db.prepare('SELECT username FROM admins WHERE username = ?').get(username);
   if (existing) {
     return res.status(409).json({ error: 'That admin already exists.' });
@@ -864,6 +869,32 @@ app.post('/api/admins', requireAuth, requireSuperAdmin, (req, res) => {
   );
 
   res.status(201).json({ ok: true });
+});
+
+app.put('/api/admins/password', requireAuth, (req, res) => {
+  const currentPassword = String(req.body?.currentPassword || '');
+  const nextPassword = String(req.body?.newPassword || '');
+
+  if (!currentPassword || !nextPassword) {
+    return res.status(400).json({ error: 'Current password and new password are required.' });
+  }
+
+  if (nextPassword.length < 8) {
+    return res.status(400).json({ error: 'New password must be at least 8 characters long.' });
+  }
+
+  const admin = db
+    .prepare('SELECT username, password_hash FROM admins WHERE username = ?')
+    .get(req.auth.username);
+  if (!admin || !bcrypt.compareSync(currentPassword, admin.password_hash)) {
+    return res.status(401).json({ error: 'Current password is incorrect.' });
+  }
+
+  const passwordHash = bcrypt.hashSync(nextPassword, 10);
+  db.prepare('UPDATE admins SET password_hash = ? WHERE username = ?').run(passwordHash, req.auth.username);
+  db.prepare('DELETE FROM sessions WHERE username = ? AND token != ?').run(req.auth.username, req.auth.token);
+
+  return res.json({ ok: true, message: 'Password updated successfully.' });
 });
 
 app.delete('/api/admins/:username', requireAuth, requireSuperAdmin, (req, res) => {

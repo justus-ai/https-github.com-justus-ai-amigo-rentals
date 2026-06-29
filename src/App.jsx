@@ -18,7 +18,7 @@ const AUTH_TOKEN_STORAGE_KEY = 'amigo-rentals-auth-token';
 
 const DEFAULT_SITE_CONTENT = {
   brandName: 'Amigo Rentals',
-  contactPhone: '00254790443776',
+  contactPhone: '0790443776',
   contactEmail: 'info@amigorentals.com',
   pageTitle: 'Rental Properties',
 };
@@ -260,6 +260,19 @@ const App = () => {
     }
   };
 
+  const handleChangeOwnPassword = async (currentPassword, newPassword) => {
+    if (!currentPassword || !newPassword) {
+      return { ok: false, message: 'Current password and new password are required.' };
+    }
+
+    try {
+      const response = await api.changeOwnPassword(currentPassword, newPassword, authToken);
+      return { ok: true, message: response.message || 'Password updated successfully.' };
+    } catch (error) {
+      return { ok: false, message: error.message || 'Unable to update password.' };
+    }
+  };
+
   const handleDeleteAdmin = async (username) => {
     const normalizedUsername = username.trim().toLowerCase();
     try {
@@ -349,6 +362,7 @@ const App = () => {
             onUpdateProperty={handleUpdateProperty}
             onDeleteProperty={handleDeleteProperty}
             onAddAdmin={handleAddAdmin}
+            onChangeOwnPassword={handleChangeOwnPassword}
             onDeleteAdmin={handleDeleteAdmin}
             reconciliationItems={reconciliationItems}
             onRefreshReconciliation={() => loadReconciliation(authToken)}

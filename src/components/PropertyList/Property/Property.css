@@ -20,6 +20,18 @@
   background: #fff;
 }
 
+@media (max-width: 800px) {
+  .property-card {
+    width: min(100%, 22rem);
+    margin: 0;
+    border-radius: 0.9rem;
+  }
+
+  .property-details {
+    padding: 0.85rem 0.9rem 0.95rem;
+  }
+}
+
 .property-card.is-unavailable .property-image {
   filter: saturate(0.8) brightness(0.78);
 }

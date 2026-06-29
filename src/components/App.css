@@ -22,25 +22,25 @@ body {
 
 .app-main {
     flex: 1;
-    padding-bottom: 12rem;
+    padding-bottom: calc(7.5rem + env(safe-area-inset-bottom, 0px));
 }
 
 @media (max-width: 800px) {
     .app {
-        padding-top: 14rem;
+        padding-top: 0;
     }
 
     .app-main {
-        padding-bottom: 14rem;
+        padding-bottom: 1.5rem;
     }
 }
 
 @media (max-width: 480px) {
     .app {
-        padding-top: 15rem;
+        padding-top: 0;
     }
 
     .app-main {
-        padding-bottom: 12rem;
+        padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
     }
 }

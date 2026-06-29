@@ -6,7 +6,7 @@ const policyUpdatedDate = '2026-06-10';
 const CommercialPages = ({ page = 'privacy', siteContent }) => {
   const brandName = siteContent?.brandName || 'Amigo Rentals';
   const contactEmail = siteContent?.contactEmail || 'info@amigorentals.com';
-  const contactPhone = siteContent?.contactPhone || '00254790443776';
+  const contactPhone = siteContent?.contactPhone || '0790443776';
 
   if (page === 'support') {
     return (
