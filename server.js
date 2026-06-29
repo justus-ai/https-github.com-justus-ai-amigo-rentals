@@ -45,12 +45,18 @@ const enquiryRateLimiter = rateLimit({
   message: { error: 'Too many enquiries submitted. Please try again later.' },
 });
 
-const dataDir = path.join(__dirname, 'data');
-if (!fs.existsSync(dataDir)) {
-  fs.mkdirSync(dataDir, { recursive: true });
+const defaultDbPath = path.join(__dirname, 'data', 'amigo-rentals.db');
+const configuredDbPath = String(process.env.DB_PATH || defaultDbPath).trim();
+const dbPath = path.isAbsolute(configuredDbPath)
+  ? configuredDbPath
+  : path.join(__dirname, configuredDbPath);
+const dbDir = path.dirname(dbPath);
+
+if (!fs.existsSync(dbDir)) {
+  fs.mkdirSync(dbDir, { recursive: true });
 }
 
-const db = new Database(path.join(dataDir, 'amigo-rentals.db'));
+const db = new Database(dbPath);
 db.pragma('journal_mode = WAL');
 
 db.exec(`

@@ -4,6 +4,7 @@
     "dev": "vite",
     "build": "vite build",
     "start": "node server.js",
+    "admin:ensure": "node scripts/ensure-admin.cjs",
     "admin:reset-password": "node scripts/reset-admin-password.cjs",
     "preflight": "node scripts/preflight.cjs",
     "preflight:strict": "node scripts/preflight.cjs --strict",

@@ -15,12 +15,17 @@ if (!username || !password) {
   process.exit(1);
 }
 
-const dbPath = path.join(__dirname, '..', 'data', 'amigo-rentals.db');
+const defaultDbPath = path.join(__dirname, '..', 'data', 'amigo-rentals.db');
+const configuredDbPath = String(process.env.DB_PATH || defaultDbPath).trim();
+const dbPath = path.isAbsolute(configuredDbPath)
+  ? configuredDbPath
+  : path.join(__dirname, '..', configuredDbPath);
 const db = new Database(dbPath);
 
 const admin = db.prepare('SELECT username FROM admins WHERE username = ?').get(username);
 if (!admin) {
   console.error(`Admin user not found: ${username}`);
+  console.error('Tip: use scripts/ensure-admin.cjs to create or update an admin in one step.');
   process.exit(1);
 }
 
