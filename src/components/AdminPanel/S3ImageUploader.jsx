@@ -1,26 +1,7 @@
 import React, { useRef } from 'react';
-
-const rawApiBaseUrl = String(import.meta.env.VITE_API_BASE_URL || '').trim();
-const HOST_FALLBACK_API_BASE_URLS = {
-  'amigorentals.co.ke': 'https://https-github-com-justus-ai-amigo-rentals-8cak.onrender.com',
-  'www.amigorentals.co.ke': 'https://https-github-com-justus-ai-amigo-rentals-8cak.onrender.com',
-};
-
-const resolveApiBaseUrl = () => {
-  if (rawApiBaseUrl) {
-    return rawApiBaseUrl;
-  }
-
-  if (typeof window === 'undefined') {
-    return '';
-  }
-
-  const hostname = String(window.location.hostname || '').toLowerCase();
-  return HOST_FALLBACK_API_BASE_URLS[hostname] || '';
-};
-
-const API_BASE_URL = resolveApiBaseUrl().replace(/\/$/, '');
+import { API_BASE_URL } from '../../utils/apiBaseUrl';
 const AUTH_TOKEN_STORAGE_KEY = 'amigo-rentals-auth-token';
+const EMBEDDED_IMAGE_FALLBACK_LIMIT = 5 * 1024 * 1024;
 
 // Helper to get a pre-signed URL from your backend
 async function getPresignedUrl(file) {
@@ -65,6 +46,29 @@ async function uploadFileToS3(file, presignedUrl) {
   if (!res.ok) throw new Error('Failed to upload to S3');
 }
 
+function readFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ''));
+    reader.onerror = () => reject(new Error('Failed to read image file.'));
+    reader.readAsDataURL(file);
+  });
+}
+
+async function uploadWithFallback(file) {
+  try {
+    const presignedUrl = await getPresignedUrl(file);
+    await uploadFileToS3(file, presignedUrl);
+    return presignedUrl.split('?')[0];
+  } catch (error) {
+    if (file.size > EMBEDDED_IMAGE_FALLBACK_LIMIT) {
+      throw error;
+    }
+
+    return readFileAsDataUrl(file);
+  }
+}
+
 // Main component
 const S3ImageUploader = ({ onUpload }) => {
   const fileInputRef = useRef();
@@ -73,11 +77,8 @@ const S3ImageUploader = ({ onUpload }) => {
     const file = event.target.files[0];
     if (!file) return;
     try {
-      const presignedUrl = await getPresignedUrl(file);
-      await uploadFileToS3(file, presignedUrl);
-      // S3 public URL
-      const s3Url = presignedUrl.split('?')[0];
-      onUpload(s3Url);
+      const imageUrl = await uploadWithFallback(file);
+      onUpload(imageUrl);
     } catch (err) {
       alert('Upload failed: ' + err.message);
     }
@@ -88,10 +89,8 @@ const S3ImageUploader = ({ onUpload }) => {
     const file = event.dataTransfer.files[0];
     if (!file) return;
     try {
-      const presignedUrl = await getPresignedUrl(file);
-      await uploadFileToS3(file, presignedUrl);
-      const s3Url = presignedUrl.split('?')[0];
-      onUpload(s3Url);
+      const imageUrl = await uploadWithFallback(file);
+      onUpload(imageUrl);
     } catch (err) {
       alert('Upload failed: ' + err.message);
     }
