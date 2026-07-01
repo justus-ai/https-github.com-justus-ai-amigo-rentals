@@ -229,6 +229,7 @@ AWS.config.update({
 
 const s3 = new AWS.S3();
 const BUCKET = process.env.AWS_S3_BUCKET || 'amigo-rentals-images';
+const useLegacyObjectAcl = String(process.env.AWS_S3_USE_OBJECT_ACL || '').toLowerCase() === 'true';
 const allowedMimeTypes = new Set(['image/jpeg', 'image/png', 'image/webp']);
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY || '';
 const stripePublishableKey = process.env.VITE_STRIPE_PUBLISHABLE_KEY || '';
@@ -1655,8 +1656,13 @@ app.get('/sign-s3', requireAuth, (req, res) => {
     Key: safeFilename,
     Expires: 60,
     ContentType: filetype,
-    ACL: 'public-read',
   };
+
+  // New S3 buckets often use bucket-owner-enforced mode where ACL headers are rejected.
+  // Keep ACL optional for legacy buckets that still require object-level ACLs.
+  if (useLegacyObjectAcl) {
+    params.ACL = 'public-read';
+  }
 
   s3.getSignedUrl('putObject', params, (err, url) => {
     if (err) {

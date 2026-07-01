@@ -584,11 +584,17 @@ const AdminPanel = ({
               </label>
               <label>
                 Image
-                <S3ImageUploader onUpload={(url) => handleChange('image', url)} />
+                <S3ImageUploader previewUrl={form.image} onUpload={(url) => handleChange('image', url)} />
                 {form.image && (
                   <div style={{ marginTop: 8 }}>
-                    <img src={form.image} alt="Preview" style={{ maxWidth: 200, maxHeight: 120, border: '1px solid #ccc' }} />
-                    <div style={{ fontSize: 12, color: '#555' }}>{form.image}</div>
+                    <button
+                      type='button'
+                      className='secondary'
+                      style={{ marginTop: 8 }}
+                      onClick={() => handleChange('image', '')}
+                    >
+                      Remove image
+                    </button>
                   </div>
                 )}
               </label>

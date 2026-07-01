@@ -70,7 +70,7 @@ async function uploadWithFallback(file) {
 }
 
 // Main component
-const S3ImageUploader = ({ onUpload }) => {
+const S3ImageUploader = ({ onUpload, previewUrl = '' }) => {
   const fileInputRef = useRef();
 
   const handleFileChange = async (event) => {
@@ -98,7 +98,17 @@ const S3ImageUploader = ({ onUpload }) => {
 
   return (
     <div
-      style={{ border: '2px dashed #aaa', padding: 16, textAlign: 'center', cursor: 'pointer' }}
+      style={{
+        border: '2px dashed #aaa',
+        height: 140,
+        padding: 12,
+        textAlign: 'center',
+        cursor: 'pointer',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        overflow: 'hidden',
+      }}
       onClick={() => fileInputRef.current.click()}
       onDrop={handleDrop}
       onDragOver={e => e.preventDefault()}
@@ -110,7 +120,15 @@ const S3ImageUploader = ({ onUpload }) => {
         ref={fileInputRef}
         onChange={handleFileChange}
       />
-      <p>Drag & drop or click to upload image</p>
+      {previewUrl ? (
+        <img
+          src={previewUrl}
+          alt='Property preview'
+          style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 6 }}
+        />
+      ) : (
+        <p>Drag & drop or click to upload image</p>
+      )}
     </div>
   );
 };
