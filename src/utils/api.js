@@ -19,13 +19,25 @@ const request = async (path, { method = 'GET', body, token } = {}) => {
 
   let response;
   try {
-    response = await fetch(buildUrl(path), {
-      method,
-      headers,
-      body: body ? JSON.stringify(body) : undefined,
-    });
-  } catch {
+    // Add timeout for better mobile network handling (30 seconds)
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000);
+    
+    try {
+      response = await fetch(buildUrl(path), {
+        method,
+        headers,
+        body: body ? JSON.stringify(body) : undefined,
+        signal: controller.signal,
+      });
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  } catch (error) {
     const originHint = API_BASE_URL || window.location.origin;
+    if (error.name === 'AbortError') {
+      throw new Error(`Request timeout: API at ${originHint} took too long to respond. Check your connection.`);
+    }
     throw new Error(`Network error: could not reach API at ${originHint}. Check VITE_API_BASE_URL for this build.`);
   }
 
