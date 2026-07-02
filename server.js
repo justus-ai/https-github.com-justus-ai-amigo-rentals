@@ -1654,7 +1654,7 @@ app.get('/sign-s3', requireAuth, (req, res) => {
   const params = {
     Bucket: BUCKET,
     Key: safeFilename,
-    Expires: 60,
+    Expires: 86400 * 7, // 7 days - presigned URLs need to stay valid for viewing images
     ContentType: filetype,
   };
 

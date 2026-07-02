@@ -118,7 +118,9 @@ async function uploadWithFallback(file) {
   try {
     const presignedUrl = await getPresignedUrl(file);
     await uploadFileToS3(file, presignedUrl);
-    return presignedUrl.split('?')[0];
+    // Return the full presigned URL (with auth params) so the image can be viewed
+    // Pre-signed URLs are self-authenticating and expire after a period
+    return presignedUrl;
   } catch (error) {
     if (file.size > EMBEDDED_IMAGE_FALLBACK_LIMIT) {
       throw error;
