@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React from 'react';
 import { API_BASE_URL } from '../../utils/apiBaseUrl';
 const AUTH_TOKEN_STORAGE_KEY = 'amigo-rentals-auth-token';
 const EMBEDDED_IMAGE_FALLBACK_LIMIT = 5 * 1024 * 1024;
@@ -132,16 +132,6 @@ async function uploadWithFallback(file) {
 
 // Main component
 const S3ImageUploader = ({ onUpload, previewUrl = '' }) => {
-  const fileInputRef = useRef();
-
-  const openFilePicker = () => {
-    if (!fileInputRef.current) return;
-
-    // Clear current value so selecting the same file again still fires onChange.
-    fileInputRef.current.value = '';
-    fileInputRef.current.click();
-  };
-
   const handleFileChange = async (event) => {
     const input = event.target;
     const file = input.files[0];
@@ -186,6 +176,7 @@ const S3ImageUploader = ({ onUpload, previewUrl = '' }) => {
   return (
     <div
       style={{
+        position: 'relative',
         border: '2px dashed #aaa',
         height: 140,
         padding: 12,
@@ -196,15 +187,23 @@ const S3ImageUploader = ({ onUpload, previewUrl = '' }) => {
         justifyContent: 'center',
         overflow: 'hidden',
       }}
-        onClick={openFilePicker}
       onDrop={handleDrop}
       onDragOver={e => e.preventDefault()}
     >
       <input
         type="file"
         accept="image/*"
-        style={{ display: 'none' }}
-        ref={fileInputRef}
+        style={{
+          position: 'absolute',
+          inset: 0,
+          opacity: 0,
+          cursor: 'pointer',
+          zIndex: 3,
+        }}
+        onClick={(event) => {
+          // Allow choosing the same file again.
+          event.currentTarget.value = '';
+        }}
         onChange={handleFileChange}
       />
       {previewUrl ? (
