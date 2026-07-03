@@ -1,6 +1,7 @@
 import React from 'react';
 import './Header.css';
 import { Phone, Mail, MessageCircle } from 'lucide-react';
+import { KNOWN_PROPERTY_TYPES, groupPropertiesByKnownType } from '../../utils/propertyTypes';
 
 const Header = ({
   contactPhone,
@@ -11,21 +12,10 @@ const Header = ({
   properties = [],
   onPropertySelect = () => {},
 }) => {
-  // Only show properties with image and type match
-  const getTypeList = (type) =>
-    properties.filter(
-      (p) =>
-        p.type &&
-        p.image &&
-        p.image.length > 0 &&
-        p.type.toLowerCase().includes(type.toLowerCase())
-    );
+  const groupedProperties = groupPropertiesByKnownType(properties);
 
-  const dropdownTypes = [
-    { label: 'Bungalow', match: 'bungalow' },
-    { label: 'Apartment', match: 'apartment' },
-    { label: 'Cottage', match: 'cottage' },
-  ];
+  const getTypeList = (type) =>
+    (groupedProperties[type] || []).filter((property) => property.image && property.image.length > 0);
 
   return (
     <header className="header">
@@ -56,14 +46,14 @@ const Header = ({
         </button>
       </div>
       <div className="property-dropdowns spaced">
-        {dropdownTypes.map((dt) => (
-          <div className="dropdown" key={dt.label}>
-            <button className="dropbtn">{dt.label}</button>
+        {KNOWN_PROPERTY_TYPES.map((type) => (
+          <div className="dropdown" key={type}>
+            <button className="dropbtn">{type}</button>
             <div className="dropdown-content">
-              {getTypeList(dt.match).length === 0 && (
+              {getTypeList(type).length === 0 && (
                 <span className="dropdown-empty">No properties</span>
               )}
-              {getTypeList(dt.match).map((p) => (
+              {getTypeList(type).map((p) => (
                 <a
                   href="#"
                   key={p.id}

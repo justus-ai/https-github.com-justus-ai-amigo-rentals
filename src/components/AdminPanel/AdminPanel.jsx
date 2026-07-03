@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import S3ImageUploader from './S3ImageUploader';
 import './AdminPanel.css';
+import { KNOWN_PROPERTY_TYPES, normalizePropertyType } from '../../utils/propertyTypes';
 
 const EMPTY_PROPERTY = {
   type: '',
@@ -332,7 +333,7 @@ const AdminPanel = ({
 
     setSelectedId(property.id);
     setForm({
-      type: property.type ?? '',
+      type: normalizePropertyType(property.type) || '',
       title: property.title ?? '',
       location: property.location ?? '',
       price: property.price ?? '',
@@ -354,6 +355,7 @@ const AdminPanel = ({
 
   const toPropertyPayload = () => ({
     ...form,
+    type: normalizePropertyType(form.type),
     price: normalizeNumber(form.price),
     bedrooms: normalizeNumber(form.bedrooms),
     bathrooms: normalizeNumber(form.bathrooms),
@@ -556,7 +558,12 @@ const AdminPanel = ({
             <div className='form-grid'>
               <label>
                 Type
-                <input value={form.type} onChange={(event) => handleChange('type', event.target.value)} />
+                <select value={form.type} onChange={(event) => handleChange('type', event.target.value)}>
+                  <option value=''>Select property type</option>
+                  {KNOWN_PROPERTY_TYPES.map((type) => (
+                    <option key={type} value={type}>{type}</option>
+                  ))}
+                </select>
               </label>
               <label>
                 Title
