@@ -134,8 +134,20 @@ async function uploadWithFallback(file) {
 const S3ImageUploader = ({ onUpload, previewUrl = '' }) => {
   const fileInputRef = useRef();
 
+  const openFilePicker = (event) => {
+    // Prevent parent label default behavior from triggering a second file-picker flow.
+    event.preventDefault();
+    event.stopPropagation();
+    if (!fileInputRef.current) return;
+
+    // Clear current value so selecting the same file again still fires onChange.
+    fileInputRef.current.value = '';
+    fileInputRef.current.click();
+  };
+
   const handleFileChange = async (event) => {
-    const file = event.target.files[0];
+    const input = event.target;
+    const file = input.files[0];
     if (!file) return;
     
     // Check file size
@@ -149,6 +161,9 @@ const S3ImageUploader = ({ onUpload, previewUrl = '' }) => {
       onUpload(imageUrl);
     } catch (err) {
       alert('Upload failed: ' + err.message);
+    } finally {
+      // Reset after each attempt to keep future selections reliable.
+      input.value = '';
     }
   };
 
@@ -184,7 +199,7 @@ const S3ImageUploader = ({ onUpload, previewUrl = '' }) => {
         justifyContent: 'center',
         overflow: 'hidden',
       }}
-      onClick={() => fileInputRef.current.click()}
+        onClick={openFilePicker}
       onDrop={handleDrop}
       onDragOver={e => e.preventDefault()}
     >
