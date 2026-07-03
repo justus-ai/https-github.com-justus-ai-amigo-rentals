@@ -134,10 +134,7 @@ async function uploadWithFallback(file) {
 const S3ImageUploader = ({ onUpload, previewUrl = '' }) => {
   const fileInputRef = useRef();
 
-  const openFilePicker = (event) => {
-    // Prevent parent label default behavior from triggering a second file-picker flow.
-    event.preventDefault();
-    event.stopPropagation();
+  const openFilePicker = () => {
     if (!fileInputRef.current) return;
 
     // Clear current value so selecting the same file again still fires onChange.

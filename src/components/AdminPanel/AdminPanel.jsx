@@ -582,8 +582,8 @@ const AdminPanel = ({
                 Area (m2)
                 <input type='number' value={form.area} onChange={(event) => handleChange('area', event.target.value)} />
               </label>
-              <label>
-                Image
+              <div>
+                <span>Image</span>
                 <S3ImageUploader previewUrl={form.image} onUpload={(url) => handleChange('image', url)} />
                 {form.image && (
                   <div style={{ marginTop: 8 }}>
@@ -597,7 +597,7 @@ const AdminPanel = ({
                     </button>
                   </div>
                 )}
-              </label>
+              </div>
               <label className='checkbox-row'>
                 <input
                   type='checkbox'
