@@ -182,8 +182,8 @@ if (propertyCount === 0) {
       available: 1,
     },
     {
-      type: 'Cottage',
-      title: 'Cozy Cottage',
+      type: 'Maisonette',
+      title: 'Cozy Maisonette',
       location: 'Suburbs',
       price: 90000,
       bedrooms: 3,
@@ -191,7 +191,7 @@ if (propertyCount === 0) {
       area: 110,
       image: 'https://amigo-rentals-images.s3.amazonaws.com/cottage1.jpg',
       images: JSON.stringify(['https://amigo-rentals-images.s3.amazonaws.com/cottage1.jpg']),
-      description: 'A cozy cottage with a garden.',
+      description: 'A cozy maisonette with a garden.',
       available: 1,
     },
   ];
@@ -209,6 +209,12 @@ if (propertyCount === 0) {
   });
   insertMany(seedProperties);
 }
+
+db.prepare("UPDATE properties SET type = 'Maisonette' WHERE lower(type) = 'cottage'").run();
+db.prepare("UPDATE properties SET title = REPLACE(title, 'Cottage', 'Maisonette') WHERE title LIKE '%Cottage%'").run();
+db.prepare("UPDATE properties SET title = REPLACE(title, 'cottage', 'maisonette') WHERE title LIKE '%cottage%'").run();
+db.prepare("UPDATE properties SET description = REPLACE(description, 'Cottage', 'Maisonette') WHERE description LIKE '%Cottage%'").run();
+db.prepare("UPDATE properties SET description = REPLACE(description, 'cottage', 'maisonette') WHERE description LIKE '%cottage%'").run();
 
 const adminCount = db.prepare('SELECT COUNT(*) AS count FROM admins').get().count;
 if (adminCount === 0) {

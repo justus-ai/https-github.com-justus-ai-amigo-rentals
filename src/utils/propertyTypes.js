@@ -1,9 +1,10 @@
-export const KNOWN_PROPERTY_TYPES = ['Bungalow', 'Apartment', 'Cottage'];
+export const KNOWN_PROPERTY_TYPES = ['Bungalow', 'Apartment', 'Maisonette'];
 
 const normalizedTypeMap = {
   bungalow: 'Bungalow',
   apartment: 'Apartment',
-  cottage: 'Cottage',
+  cottage: 'Maisonette',
+  maisonette: 'Maisonette',
 };
 
 const findTypeByIncludes = (value) => {
@@ -16,7 +17,11 @@ const findTypeByIncludes = (value) => {
   }
 
   if (value.includes('cottage')) {
-    return 'Cottage';
+    return 'Maisonette';
+  }
+
+  if (value.includes('maisonette')) {
+    return 'Maisonette';
   }
 
   if (value.includes('bungalow') || value.includes('house') || value.includes('villa')) {

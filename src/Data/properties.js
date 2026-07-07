@@ -13,15 +13,15 @@ const properties = [
   },
   {
     id: 2,
-    type: "Cottage",
-    title: "Cozy Cottage",
+    type: "Maisonette",
+    title: "Cozy Maisonette",
     location: "Suburbs",
     price: 90000,
     bedrooms: 3,
     bathrooms: 2,
     area: 110,
     image: "https://amigo-rentals-images.s3.amazonaws.com/cottage1.jpg",
-    description: "A cozy cottage with a garden."
+    description: "A cozy maisonette with a garden."
   },
   {
     id: 3,
@@ -50,7 +50,7 @@ const properties = [
   },
   {
     id: 5,
-    type: "Cottage",
+    type: "Maisonette",
     title: "Suburban House",
     location: "Suburbs",
     price: 150000,
@@ -62,15 +62,15 @@ const properties = [
   },
   {
     id: 6,
-    type: "Cottage",
-    title: "Modern Cottage",
+    type: "Maisonette",
+    title: "Modern Maisonette",
     location: "Downtown",
     price: 400000,
     bedrooms: 4,
     bathrooms: 3,
     area: 210,
     image: "https://amigo-rentals-images.s3.amazonaws.com/cottage3.jpg",
-    description: "A modern cottage with stunning city views."
+    description: "A modern maisonette with stunning city views."
   },
   {
     id: 7,
