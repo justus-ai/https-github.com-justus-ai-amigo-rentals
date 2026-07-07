@@ -11,7 +11,7 @@ const EMPTY_PROPERTY = {
   bedrooms: '',
   bathrooms: '',
   area: '',
-  image: '',
+  images: [],
   description: '',
   available: true,
 };
@@ -332,6 +332,10 @@ const AdminPanel = ({
     }
 
     setSelectedId(property.id);
+    const images = Array.isArray(property.images)
+      ? property.images.filter((value) => typeof value === 'string' && value.trim())
+      : (property.image ? [property.image] : []);
+
     setForm({
       type: normalizePropertyType(property.type) || '',
       title: property.title ?? '',
@@ -340,7 +344,7 @@ const AdminPanel = ({
       bedrooms: property.bedrooms ?? '',
       bathrooms: property.bathrooms ?? '',
       area: property.area ?? '',
-      image: property.image ?? '',
+      images,
       description: property.description ?? '',
       available: property.available ?? true,
     });
@@ -353,14 +357,22 @@ const AdminPanel = ({
     }));
   };
 
-  const toPropertyPayload = () => ({
-    ...form,
-    type: normalizePropertyType(form.type),
-    price: normalizeNumber(form.price),
-    bedrooms: normalizeNumber(form.bedrooms),
-    bathrooms: normalizeNumber(form.bathrooms),
-    area: normalizeNumber(form.area),
-  });
+  const toPropertyPayload = () => {
+    const images = (Array.isArray(form.images) ? form.images : [])
+      .map((value) => String(value || '').trim())
+      .filter(Boolean);
+
+    return {
+      ...form,
+      type: normalizePropertyType(form.type),
+      images,
+      image: images[0] || '',
+      price: normalizeNumber(form.price),
+      bedrooms: normalizeNumber(form.bedrooms),
+      bathrooms: normalizeNumber(form.bathrooms),
+      area: normalizeNumber(form.area),
+    };
+  };
 
   const handleCreate = async () => {
     if (!form.title.trim() || !form.type.trim()) {
@@ -589,22 +601,41 @@ const AdminPanel = ({
                 Area (m2)
                 <input type='number' value={form.area} onChange={(event) => handleChange('area', event.target.value)} />
               </label>
-              <div>
-                <span>Image</span>
-                <S3ImageUploader previewUrl={form.image} onUpload={(url) => handleChange('image', url)} />
-                {form.image && (
-                  <div style={{ marginTop: 8 }}>
-                    <button
-                      type='button'
-                      className='secondary'
-                      style={{ marginTop: 8 }}
-                      onClick={() => handleChange('image', '')}
-                    >
-                      Remove image
-                    </button>
+              <label>
+                Images
+                <S3ImageUploader
+                  multiple
+                  previewUrls={form.images}
+                  onUpload={(urls) => {
+                    const next = Array.isArray(urls) ? urls : [urls];
+                    handleChange(
+                      'images',
+                      Array.from(new Set([...(form.images || []), ...next.filter(Boolean)]))
+                    );
+                  }}
+                />
+                {form.images.length > 0 && (
+                  <div style={{ marginTop: 8, display: 'grid', gap: 8 }}>
+                    {form.images.map((url, index) => (
+                      <div
+                        key={`${url}-${index}`}
+                        style={{ display: 'flex', gap: 8, alignItems: 'center' }}
+                      >
+                        <span style={{ flex: 1, fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {url}
+                        </span>
+                        <button
+                          type='button'
+                          className='secondary'
+                          onClick={() => handleChange('images', form.images.filter((_, i) => i !== index))}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))}
                   </div>
                 )}
-              </div>
+              </label>
               <label className='checkbox-row'>
                 <input
                   type='checkbox'

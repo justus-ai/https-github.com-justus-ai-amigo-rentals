@@ -92,6 +92,7 @@ db.exec(`
     bathrooms INTEGER NOT NULL DEFAULT 0,
     area REAL NOT NULL DEFAULT 0,
     image TEXT,
+    images TEXT,
     description TEXT,
     available INTEGER NOT NULL DEFAULT 1,
     created_at INTEGER NOT NULL,
@@ -144,6 +145,11 @@ db.exec(`
   );
 `);
 
+const propertyColumns = db.prepare('PRAGMA table_info(properties)').all();
+if (!propertyColumns.some((column) => column.name === 'images')) {
+  db.prepare('ALTER TABLE properties ADD COLUMN images TEXT').run();
+}
+
 const defaultSiteContent = {
   brand_name: 'Amigo Rentals',
   contact_phone: '0790443776',
@@ -171,6 +177,7 @@ if (propertyCount === 0) {
       bathrooms: 1,
       area: 85,
       image: 'https://amigo-rentals-images.s3.amazonaws.com/blueapartment1.jpg',
+      images: JSON.stringify(['https://amigo-rentals-images.s3.amazonaws.com/blueapartment1.jpg']),
       description: 'A beautiful modern apartment in the city center.',
       available: 1,
     },
@@ -183,14 +190,15 @@ if (propertyCount === 0) {
       bathrooms: 2,
       area: 110,
       image: 'https://amigo-rentals-images.s3.amazonaws.com/cottage1.jpg',
+      images: JSON.stringify(['https://amigo-rentals-images.s3.amazonaws.com/cottage1.jpg']),
       description: 'A cozy cottage with a garden.',
       available: 1,
     },
   ];
 
   const insertProperty = db.prepare(`
-    INSERT INTO properties (type, title, location, price, bedrooms, bathrooms, area, image, description, available, created_at, updated_at)
-    VALUES (@type, @title, @location, @price, @bedrooms, @bathrooms, @area, @image, @description, @available, @created_at, @updated_at)
+    INSERT INTO properties (type, title, location, price, bedrooms, bathrooms, area, image, images, description, available, created_at, updated_at)
+    VALUES (@type, @title, @location, @price, @bedrooms, @bathrooms, @area, @image, @images, @description, @available, @created_at, @updated_at)
   `);
 
   const now = Date.now();
@@ -551,23 +559,65 @@ const getMpesaAccessToken = async () => {
   return payload.access_token;
 };
 
-const normalizePropertyInput = (input = {}) => ({
-  type: String(input.type || '').trim(),
-  title: String(input.title || '').trim(),
-  location: String(input.location || '').trim(),
-  price: asNumber(input.price),
-  bedrooms: asNumber(input.bedrooms),
-  bathrooms: asNumber(input.bathrooms),
-  area: asNumber(input.area),
-  image: String(input.image || '').trim(),
-  description: String(input.description || '').trim(),
-  available: input.available ? 1 : 0,
-});
+const normalizePropertyInput = (input = {}) => {
+  let imageCandidates = [];
 
-const formatProperty = (row) => ({
-  ...row,
-  available: Boolean(row.available),
-});
+  if (Array.isArray(input.images)) {
+    imageCandidates = input.images;
+  } else if (typeof input.images === 'string') {
+    try {
+      const parsed = JSON.parse(input.images || '[]');
+      imageCandidates = Array.isArray(parsed) ? parsed : [];
+    } catch {
+      imageCandidates = [];
+    }
+  }
+
+  const normalizedImages = imageCandidates
+    .map((value) => String(value || '').trim())
+    .filter(Boolean);
+
+  if (!normalizedImages.length && input.image) {
+    normalizedImages.push(String(input.image).trim());
+  }
+
+  return {
+    type: String(input.type || '').trim(),
+    title: String(input.title || '').trim(),
+    location: String(input.location || '').trim(),
+    price: asNumber(input.price),
+    bedrooms: asNumber(input.bedrooms),
+    bathrooms: asNumber(input.bathrooms),
+    area: asNumber(input.area),
+    image: normalizedImages[0] || '',
+    images: JSON.stringify(normalizedImages),
+    description: String(input.description || '').trim(),
+    available: input.available ? 1 : 0,
+  };
+};
+
+const formatProperty = (row) => {
+  let parsedImages = [];
+  try {
+    const decoded = JSON.parse(String(row.images || '[]'));
+    if (Array.isArray(decoded)) {
+      parsedImages = decoded.map((value) => String(value || '').trim()).filter(Boolean);
+    }
+  } catch {
+    parsedImages = [];
+  }
+
+  if (!parsedImages.length && row.image) {
+    parsedImages = [String(row.image).trim()];
+  }
+
+  return {
+    ...row,
+    image: parsedImages[0] || '',
+    images: parsedImages,
+    available: Boolean(row.available),
+  };
+};
 
 const unauthorized = (res) => res.status(401).json({ error: 'Unauthorized' });
 
@@ -638,7 +688,7 @@ app.get('/ready', (_req, res) => {
 
 app.get('/api/properties', (_req, res) => {
   const rows = db
-    .prepare('SELECT id, type, title, location, price, bedrooms, bathrooms, area, image, description, available FROM properties ORDER BY id DESC')
+    .prepare('SELECT id, type, title, location, price, bedrooms, bathrooms, area, image, images, description, available FROM properties ORDER BY id DESC')
     .all();
   res.json({ properties: rows.map(formatProperty) });
 });
@@ -708,14 +758,14 @@ app.post('/api/properties', requireAuth, (req, res) => {
   const insertResult = db
     .prepare(
       `
-        INSERT INTO properties (type, title, location, price, bedrooms, bathrooms, area, image, description, available, created_at, updated_at)
-        VALUES (@type, @title, @location, @price, @bedrooms, @bathrooms, @area, @image, @description, @available, @created_at, @updated_at)
+        INSERT INTO properties (type, title, location, price, bedrooms, bathrooms, area, image, images, description, available, created_at, updated_at)
+        VALUES (@type, @title, @location, @price, @bedrooms, @bathrooms, @area, @image, @images, @description, @available, @created_at, @updated_at)
       `
     )
     .run({ ...property, created_at: now, updated_at: now });
 
   const created = db
-    .prepare('SELECT id, type, title, location, price, bedrooms, bathrooms, area, image, description, available FROM properties WHERE id = ?')
+    .prepare('SELECT id, type, title, location, price, bedrooms, bathrooms, area, image, images, description, available FROM properties WHERE id = ?')
     .get(insertResult.lastInsertRowid);
   res.status(201).json({ property: formatProperty(created) });
 });
@@ -740,13 +790,13 @@ app.put('/api/properties/:id', requireAuth, (req, res) => {
     `
       UPDATE properties
       SET type=@type, title=@title, location=@location, price=@price, bedrooms=@bedrooms, bathrooms=@bathrooms,
-          area=@area, image=@image, description=@description, available=@available, updated_at=@updated_at
+          area=@area, image=@image, images=@images, description=@description, available=@available, updated_at=@updated_at
       WHERE id=@id
     `
   ).run({ ...property, updated_at: Date.now(), id: propertyId });
 
   const updated = db
-    .prepare('SELECT id, type, title, location, price, bedrooms, bathrooms, area, image, description, available FROM properties WHERE id = ?')
+    .prepare('SELECT id, type, title, location, price, bedrooms, bathrooms, area, image, images, description, available FROM properties WHERE id = ?')
     .get(propertyId);
   res.json({ property: formatProperty(updated) });
 });

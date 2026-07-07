@@ -10,6 +10,7 @@ import { formatKES } from '../../../utils/currency';
 
 const Property = ({
   image,
+  images = [],
   title,
   location,
   price,
@@ -22,12 +23,14 @@ const Property = ({
   id,
   onBookNow = () => {},
 }) => {
+  const coverImage = (Array.isArray(images) && images[0]) || image;
+
   return (
     <div
       className={`property-card ${!available ? 'is-unavailable' : ''}`.trim()}
       id={`property-${id}`}
     >
-      <PropertyImage image={image}>
+      <PropertyImage image={coverImage}>
         <PropertyTypeLabel type={type} />
         {!available && <PropertyBanner text='Occupied' />}
         <div className='property-image-meta'>

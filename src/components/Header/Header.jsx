@@ -13,9 +13,16 @@ const Header = ({
   onPropertySelect = () => {},
 }) => {
   const groupedProperties = groupPropertiesByKnownType(properties);
+  const getCoverImage = (property) => {
+    if (Array.isArray(property?.images) && property.images.length > 0) {
+      return property.images[0];
+    }
+
+    return property?.image || '';
+  };
 
   const getTypeList = (type) =>
-    (groupedProperties[type] || []).filter((property) => property.image && property.image.length > 0);
+    (groupedProperties[type] || []).filter((property) => Boolean(getCoverImage(property)));
 
   return (
     <header className="header">
@@ -62,7 +69,7 @@ const Header = ({
                     onPropertySelect(p);
                   }}
                 >
-                  <img src={p.image} alt={p.title} className="dropdown-img" />
+                  <img src={getCoverImage(p)} alt={p.title} className="dropdown-img" />
                   {p.title}
                 </a>
               ))}

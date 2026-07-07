@@ -131,47 +131,46 @@ async function uploadWithFallback(file) {
 }
 
 // Main component
-const S3ImageUploader = ({ onUpload, previewUrl = '' }) => {
-  const handleFileChange = async (event) => {
-    const input = event.target;
-    const file = input.files[0];
-    if (!file) return;
-    
-    // Check file size
-    if (file.size > MAX_FILE_SIZE) {
-      alert(`⚠️ File is too large!\n\nFile size: ${formatFileSize(file.size)}\nMaximum allowed: ${formatFileSize(MAX_FILE_SIZE)}\n\nPlease choose a smaller image.`);
+const S3ImageUploader = ({ onUpload, previewUrl = '', previewUrls = [], multiple = false }) => {
+  const uploadFiles = async (fileList) => {
+    const files = Array.from(fileList || []).filter((file) => file);
+    if (!files.length) {
       return;
     }
-    
+
+    for (const file of files) {
+      if (file.size > MAX_FILE_SIZE) {
+        alert(`File is too large. File size: ${formatFileSize(file.size)}. Maximum allowed: ${formatFileSize(MAX_FILE_SIZE)}.`);
+        return;
+      }
+    }
+
     try {
-      const imageUrl = await uploadWithFallback(file);
-      onUpload(imageUrl);
+      const urls = [];
+      for (const file of files) {
+        const imageUrl = await uploadWithFallback(file);
+        urls.push(imageUrl);
+      }
+
+      onUpload(multiple ? urls : urls[0]);
     } catch (err) {
       alert('Upload failed: ' + err.message);
-    } finally {
-      // Reset after each attempt to keep future selections reliable.
-      input.value = '';
     }
+  };
+
+  const handleFileChange = async (event) => {
+    await uploadFiles(event.target.files);
+    event.target.value = '';
   };
 
   const handleDrop = async (event) => {
     event.preventDefault();
-    const file = event.dataTransfer.files[0];
-    if (!file) return;
-    
-    // Check file size
-    if (file.size > MAX_FILE_SIZE) {
-      alert(`⚠️ File is too large!\n\nFile size: ${formatFileSize(file.size)}\nMaximum allowed: ${formatFileSize(MAX_FILE_SIZE)}\n\nPlease choose a smaller image.`);
-      return;
-    }
-    
-    try {
-      const imageUrl = await uploadWithFallback(file);
-      onUpload(imageUrl);
-    } catch (err) {
-      alert('Upload failed: ' + err.message);
-    }
+    await uploadFiles(event.dataTransfer.files);
   };
+
+  const effectivePreviewUrls = Array.isArray(previewUrls) && previewUrls.length
+    ? previewUrls
+    : (previewUrl ? [previewUrl] : []);
 
   return (
     <div
@@ -193,6 +192,7 @@ const S3ImageUploader = ({ onUpload, previewUrl = '' }) => {
       <input
         type="file"
         accept="image/*"
+        multiple={multiple}
         style={{
           position: 'absolute',
           inset: 0,
@@ -201,19 +201,31 @@ const S3ImageUploader = ({ onUpload, previewUrl = '' }) => {
           zIndex: 3,
         }}
         onClick={(event) => {
-          // Allow choosing the same file again.
           event.currentTarget.value = '';
         }}
         onChange={handleFileChange}
       />
-      {previewUrl ? (
-        <img
-          src={previewUrl}
-          alt='Property preview'
-          style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 6 }}
-        />
+      {effectivePreviewUrls.length ? (
+        <div
+          style={{
+            width: '100%',
+            height: '100%',
+            display: 'grid',
+            gridTemplateColumns: multiple ? 'repeat(4, 1fr)' : '1fr',
+            gap: 6,
+          }}
+        >
+          {effectivePreviewUrls.slice(0, multiple ? 4 : 1).map((url, index) => (
+            <img
+              key={`${url}-${index}`}
+              src={url}
+              alt='Property preview'
+              style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 6 }}
+            />
+          ))}
+        </div>
       ) : (
-        <p>Drag & drop or click to upload image</p>
+        <p>{multiple ? 'Drag & drop or click to upload images' : 'Drag & drop or click to upload image'}</p>
       )}
     </div>
   );
