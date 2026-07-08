@@ -70,6 +70,21 @@
   z-index: 4;
 }
 
+.property-gallery-trigger {
+  position: absolute;
+  left: 0.6rem;
+  bottom: 0.55rem;
+  border: none;
+  border-radius: 999px;
+  padding: 0.35rem 0.65rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #e0f2fe;
+  background: rgba(15, 23, 42, 0.72);
+  cursor: pointer;
+  z-index: 4;
+}
+
 .book-now-btn {
   margin-top: 0.6rem;
   border: none;

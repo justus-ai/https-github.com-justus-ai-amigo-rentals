@@ -7,6 +7,7 @@ import PropertyBanner from './PropertyImage/PropertyBanner/PropertyBanner';
 import IconWithText from './PropertyImage/IconWithText/IconWithText';
 import PropertyAttribute from './PropertyAttribute/PropertyAttribute';
 import { formatKES } from '../../../utils/currency';
+import { getPrimaryPropertyImage } from '../../../utils/propertyImages';
 
 const Property = ({
   image,
@@ -22,15 +23,16 @@ const Property = ({
   available = true,
   id,
   onBookNow = () => {},
+  onOpenGallery = () => {},
 }) => {
-  const coverImage = (Array.isArray(images) && images[0]) || image;
+  const coverImage = getPrimaryPropertyImage({ images, image });
 
   return (
     <div
       className={`property-card ${!available ? 'is-unavailable' : ''}`.trim()}
       id={`property-${id}`}
     >
-      <PropertyImage image={coverImage}>
+      <PropertyImage image={coverImage} onClick={onOpenGallery}>
         <PropertyTypeLabel type={type} />
         {!available && <PropertyBanner text='Occupied' />}
         <div className='property-image-meta'>

@@ -2,6 +2,7 @@
   "name": "Ex_Files_Master_React_19",
   "scripts": {
     "dev": "vite",
+    "prebuild": "node -e \"require('fs').rmSync('dist-build', { recursive: true, force: true })\"",
     "build": "vite build",
     "start": "node server.js",
     "admin:ensure": "node scripts/ensure-admin.cjs",

@@ -47,6 +47,13 @@ const request = async (path, { method = 'GET', body, token } = {}) => {
   const text = isJson ? '' : await response.text().catch(() => '');
   const looksLikeHtml = !isJson && /<!doctype html>|<html[\s>]/i.test(text);
 
+  if (!isJson && response.status === 413) {
+    throw createHttpError(
+      'Property media payload is too large. Re-upload media so entries are S3 links instead of embedded data URLs, then save again.',
+      413
+    );
+  }
+
   if (looksLikeHtml) {
     const target = API_BASE_URL || window.location.origin;
     throw createHttpError(

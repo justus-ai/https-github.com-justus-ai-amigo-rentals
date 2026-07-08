@@ -2,6 +2,9 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import S3ImageUploader from './S3ImageUploader';
 import './AdminPanel.css';
 import { KNOWN_PROPERTY_TYPES, normalizePropertyType } from '../../utils/propertyTypes';
+import { detectMediaType } from '../../utils/propertyImages';
+
+const MAX_PROPERTY_MEDIA = 6;
 
 const EMPTY_PROPERTY = {
   type: '',
@@ -27,6 +30,8 @@ const SOUND_PRESETS = {
   market: { label: 'Market', peakGain: 0.03, wave: 'triangle' },
   loud: { label: 'Loud Office', peakGain: 0.055, wave: 'triangle' },
 };
+
+const EMBEDDED_MEDIA_PATTERN = /^data:/i;
 
 const formatDateTime = (value) => {
   if (!value) {
@@ -335,6 +340,7 @@ const AdminPanel = ({
     const images = Array.isArray(property.images)
       ? property.images.filter((value) => typeof value === 'string' && value.trim())
       : (property.image ? [property.image] : []);
+    const limitedImages = Array.from(new Set(images)).slice(0, MAX_PROPERTY_MEDIA);
 
     setForm({
       type: normalizePropertyType(property.type) || '',
@@ -344,7 +350,7 @@ const AdminPanel = ({
       bedrooms: property.bedrooms ?? '',
       bathrooms: property.bathrooms ?? '',
       area: property.area ?? '',
-      images,
+      images: limitedImages,
       description: property.description ?? '',
       available: property.available ?? true,
     });
@@ -358,20 +364,53 @@ const AdminPanel = ({
   };
 
   const toPropertyPayload = () => {
-    const images = (Array.isArray(form.images) ? form.images : [])
+    const rawImages = (Array.isArray(form.images) ? form.images : [])
       .map((value) => String(value || '').trim())
-      .filter(Boolean);
+      .filter(Boolean)
+      .slice(0, MAX_PROPERTY_MEDIA);
+
+    const images = rawImages.filter((value) => !EMBEDDED_MEDIA_PATTERN.test(value));
+    const removedEmbeddedMediaCount = rawImages.length - images.length;
 
     return {
-      ...form,
-      type: normalizePropertyType(form.type),
-      images,
-      image: images[0] || '',
-      price: normalizeNumber(form.price),
-      bedrooms: normalizeNumber(form.bedrooms),
-      bathrooms: normalizeNumber(form.bathrooms),
-      area: normalizeNumber(form.area),
+      payload: {
+        ...form,
+        type: normalizePropertyType(form.type),
+        images,
+        image: images[0] || '',
+        price: normalizeNumber(form.price),
+        bedrooms: normalizeNumber(form.bedrooms),
+        bathrooms: normalizeNumber(form.bathrooms),
+        area: normalizeNumber(form.area),
+      },
+      sanitizedImages: images,
+      removedEmbeddedMediaCount,
     };
+  };
+
+  const moveMedia = (fromIndex, toIndex) => {
+    const media = Array.isArray(form.images) ? [...form.images] : [];
+    if (
+      fromIndex < 0 ||
+      toIndex < 0 ||
+      fromIndex >= media.length ||
+      toIndex >= media.length ||
+      fromIndex === toIndex
+    ) {
+      return;
+    }
+
+    const [item] = media.splice(fromIndex, 1);
+    media.splice(toIndex, 0, item);
+    handleChange('images', media);
+  };
+
+  const setPrimaryMedia = (index) => {
+    if (index <= 0) {
+      return;
+    }
+
+    moveMedia(index, 0);
   };
 
   const handleCreate = async () => {
@@ -381,10 +420,19 @@ const AdminPanel = ({
     }
 
     try {
-      await Promise.resolve(onCreateProperty(toPropertyPayload()));
+      const { payload, sanitizedImages, removedEmbeddedMediaCount } = toPropertyPayload();
+      if (removedEmbeddedMediaCount > 0) {
+        handleChange('images', sanitizedImages);
+      }
+
+      await Promise.resolve(onCreateProperty(payload));
       setForm(EMPTY_PROPERTY);
       setSelectedId(null);
-      setMessage('Property created.');
+      setMessage(
+        removedEmbeddedMediaCount > 0
+          ? `Property created. Removed ${removedEmbeddedMediaCount} embedded media item(s). Re-upload them to restore.`
+          : 'Property created.'
+      );
     } catch (error) {
       setMessage(error.message || 'Unable to create property.');
     }
@@ -397,8 +445,17 @@ const AdminPanel = ({
     }
 
     try {
-      await Promise.resolve(onUpdateProperty(selectedProperty.id, toPropertyPayload()));
-      setMessage('Property updated.');
+      const { payload, sanitizedImages, removedEmbeddedMediaCount } = toPropertyPayload();
+      if (removedEmbeddedMediaCount > 0) {
+        handleChange('images', sanitizedImages);
+      }
+
+      await Promise.resolve(onUpdateProperty(selectedProperty.id, payload));
+      setMessage(
+        removedEmbeddedMediaCount > 0
+          ? `Property updated. Removed ${removedEmbeddedMediaCount} embedded media item(s). Re-upload them to restore.`
+          : 'Property updated.'
+      );
     } catch (error) {
       setMessage(error.message || 'Unable to update property.');
     }
@@ -602,35 +659,78 @@ const AdminPanel = ({
                 <input type='number' value={form.area} onChange={(event) => handleChange('area', event.target.value)} />
               </label>
               <label>
-                Images
+                Images & Motion Photos
                 <S3ImageUploader
                   multiple
                   previewUrls={form.images}
+                  maxFiles={MAX_PROPERTY_MEDIA}
+                  currentCount={form.images.length}
+                  onLimitReached={(limitMessage) => setMessage(limitMessage)}
                   onUpload={(urls) => {
                     const next = Array.isArray(urls) ? urls : [urls];
+                    const availableSlots = Math.max(0, MAX_PROPERTY_MEDIA - form.images.length);
+                    const merged = Array.from(new Set([...(form.images || []), ...next.filter(Boolean)]));
                     handleChange(
                       'images',
-                      Array.from(new Set([...(form.images || []), ...next.filter(Boolean)]))
+                      merged.slice(0, MAX_PROPERTY_MEDIA)
                     );
+
+                    if (next.length > availableSlots) {
+                      setMessage(`Only ${MAX_PROPERTY_MEDIA} media files are allowed. Extra files were skipped.`);
+                    }
                   }}
                 />
+                <p className='admin-media-count'>
+                  {form.images.length} / {MAX_PROPERTY_MEDIA} selected. The first item is used as the cover.
+                </p>
                 {form.images.length > 0 && (
-                  <div style={{ marginTop: 8, display: 'grid', gap: 8 }}>
+                  <div className='admin-media-grid'>
                     {form.images.map((url, index) => (
-                      <div
-                        key={`${url}-${index}`}
-                        style={{ display: 'flex', gap: 8, alignItems: 'center' }}
-                      >
-                        <span style={{ flex: 1, fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                          {url}
-                        </span>
-                        <button
-                          type='button'
-                          className='secondary'
-                          onClick={() => handleChange('images', form.images.filter((_, i) => i !== index))}
-                        >
-                          Remove
-                        </button>
+                      <div className='admin-media-card' key={`${url}-${index}`}>
+                        <div className='admin-media-thumb'>
+                          {detectMediaType(url) === 'video' ? (
+                            <video src={url} muted controls playsInline preload='metadata' />
+                          ) : (
+                            <img src={url} alt={`Selected media ${index + 1}`} />
+                          )}
+                          <span className='admin-media-badge'>
+                            {index === 0 ? 'Cover' : `Media ${index + 1}`}
+                          </span>
+                        </div>
+                        <div className='admin-media-controls'>
+                          <button
+                            type='button'
+                            className='secondary'
+                            onClick={() => setPrimaryMedia(index)}
+                            disabled={index === 0}
+                          >
+                            Set Cover
+                          </button>
+                          <button
+                            type='button'
+                            className='secondary'
+                            onClick={() => moveMedia(index, index - 1)}
+                            disabled={index === 0}
+                          >
+                            Left
+                          </button>
+                          <button
+                            type='button'
+                            className='secondary'
+                            onClick={() => moveMedia(index, index + 1)}
+                            disabled={index === form.images.length - 1}
+                          >
+                            Right
+                          </button>
+                          <button
+                            type='button'
+                            className='danger'
+                            onClick={() => handleChange('images', form.images.filter((_, i) => i !== index))}
+                          >
+                            Remove
+                          </button>
+                        </div>
+                        <p className='admin-media-url'>{url}</p>
                       </div>
                     ))}
                   </div>

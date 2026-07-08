@@ -1,10 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
 import './PropertyList.css';
 import Property from './Property/Property';
+import PropertyGalleryModal from './PropertyGalleryModal';
 import { KNOWN_PROPERTY_TYPES, groupPropertiesByKnownType } from '../../utils/propertyTypes';
 
 
 const PropertyList = ({ properties, onBookProperty = () => {} }) => {
+    const [activeProperty, setActiveProperty] = useState(null);
     const groupedProperties = groupPropertiesByKnownType(properties);
 
     return (
@@ -25,12 +27,20 @@ const PropertyList = ({ properties, onBookProperty = () => {} }) => {
                                     key={property.id}
                                     {...property}
                                     onBookNow={onBookProperty}
+                                    onOpenGallery={() => setActiveProperty(property)}
                                 />
                             ))}
                         </div>
                     </section>
                 );
             })}
+
+            {activeProperty && (
+                <PropertyGalleryModal
+                    property={activeProperty}
+                    onClose={() => setActiveProperty(null)}
+                />
+            )}
         </div>
     );
 };

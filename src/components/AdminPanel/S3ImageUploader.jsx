@@ -1,8 +1,8 @@
 import React from 'react';
 import { API_BASE_URL } from '../../utils/apiBaseUrl';
+import { detectMediaType } from '../../utils/propertyImages';
 const AUTH_TOKEN_STORAGE_KEY = 'amigo-rentals-auth-token';
-const EMBEDDED_IMAGE_FALLBACK_LIMIT = 5 * 1024 * 1024;
-const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB limit
+const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB limit
 
 // Helper to format file size for display
 function formatFileSize(bytes) {
@@ -23,6 +23,14 @@ function getMimeTypeFromFilename(filename) {
     'webp': 'image/webp',
     'gif': 'image/gif',
     'bmp': 'image/bmp',
+    'heic': 'image/heic',
+    'heif': 'image/heif',
+    'mp4': 'video/mp4',
+    'mov': 'video/quicktime',
+    'webm': 'video/webm',
+    'm4v': 'video/x-m4v',
+    '3gp': 'video/3gpp',
+    '3gpp': 'video/3gpp',
   };
   return mimeMap[ext] || 'image/jpeg';
 }
@@ -81,6 +89,20 @@ async function getPresignedUrl(file) {
 async function uploadFileToS3(file, presignedUrl) {
   // Use detected MIME type for Content-Type header (important for mobile)
   const contentType = file.type || getMimeTypeFromFilename(file.name);
+  const headers = { 'Content-Type': contentType };
+
+  try {
+    const uploadUrl = new URL(presignedUrl, window.location.origin);
+    const isLocalFallbackUpload = uploadUrl.pathname.startsWith('/uploads/');
+    if (isLocalFallbackUpload) {
+      const token = localStorage.getItem(AUTH_TOKEN_STORAGE_KEY);
+      if (token) {
+        headers.Authorization = `Bearer ${token}`;
+      }
+    }
+  } catch {
+    // Keep default headers when URL parsing fails.
+  }
   
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout
@@ -88,7 +110,7 @@ async function uploadFileToS3(file, presignedUrl) {
   try {
     const res = await fetch(presignedUrl, {
       method: 'PUT',
-      headers: { 'Content-Type': contentType },
+      headers,
       body: file,
       signal: controller.signal,
     });
@@ -105,40 +127,45 @@ async function uploadFileToS3(file, presignedUrl) {
   }
 }
 
-function readFileAsDataUrl(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result || ''));
-    reader.onerror = () => reject(new Error('Failed to read image file.'));
-    reader.readAsDataURL(file);
-  });
-}
-
 async function uploadWithFallback(file) {
-  try {
-    const presignedUrl = await getPresignedUrl(file);
-    await uploadFileToS3(file, presignedUrl);
-    // Return the full presigned URL (with auth params) so the image can be viewed
-    // Pre-signed URLs are self-authenticating and expire after a period
-    return presignedUrl;
-  } catch (error) {
-    if (file.size > EMBEDDED_IMAGE_FALLBACK_LIMIT) {
-      throw error;
-    }
-
-    return readFileAsDataUrl(file);
-  }
+  const presignedUrl = await getPresignedUrl(file);
+  await uploadFileToS3(file, presignedUrl);
+  // Return the full presigned URL (with auth params) so the media can be viewed.
+  return presignedUrl;
 }
 
 // Main component
-const S3ImageUploader = ({ onUpload, previewUrl = '', previewUrls = [], multiple = false }) => {
+const S3ImageUploader = ({
+  onUpload,
+  previewUrl = '',
+  previewUrls = [],
+  multiple = false,
+  maxFiles = 6,
+  currentCount = 0,
+  onLimitReached = () => {},
+}) => {
   const uploadFiles = async (fileList) => {
     const files = Array.from(fileList || []).filter((file) => file);
     if (!files.length) {
       return;
     }
 
-    for (const file of files) {
+    const availableSlots = multiple ? Math.max(0, maxFiles - Number(currentCount || 0)) : 1;
+    if (availableSlots <= 0) {
+      const message = `You can upload up to ${maxFiles} files per property.`;
+      onLimitReached(message);
+      alert(message);
+      return;
+    }
+
+    const filesToUpload = multiple ? files.slice(0, availableSlots) : files.slice(0, 1);
+    if (multiple && files.length > filesToUpload.length) {
+      const message = `Only ${availableSlots} more file(s) can be added (max ${maxFiles}).`;
+      onLimitReached(message);
+      alert(message);
+    }
+
+    for (const file of filesToUpload) {
       if (file.size > MAX_FILE_SIZE) {
         alert(`File is too large. File size: ${formatFileSize(file.size)}. Maximum allowed: ${formatFileSize(MAX_FILE_SIZE)}.`);
         return;
@@ -147,7 +174,7 @@ const S3ImageUploader = ({ onUpload, previewUrl = '', previewUrls = [], multiple
 
     try {
       const urls = [];
-      for (const file of files) {
+      for (const file of filesToUpload) {
         const imageUrl = await uploadWithFallback(file);
         urls.push(imageUrl);
       }
@@ -191,7 +218,7 @@ const S3ImageUploader = ({ onUpload, previewUrl = '', previewUrls = [], multiple
     >
       <input
         type="file"
-        accept="image/*"
+        accept="image/*,video/*,.heic,.heif"
         multiple={multiple}
         style={{
           position: 'absolute',
@@ -215,17 +242,35 @@ const S3ImageUploader = ({ onUpload, previewUrl = '', previewUrls = [], multiple
             gap: 6,
           }}
         >
-          {effectivePreviewUrls.slice(0, multiple ? 4 : 1).map((url, index) => (
-            <img
-              key={`${url}-${index}`}
-              src={url}
-              alt='Property preview'
-              style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 6 }}
-            />
-          ))}
+          {effectivePreviewUrls.slice(0, multiple ? 4 : 1).map((url, index) => {
+            const mediaType = detectMediaType(url);
+
+            if (mediaType === 'video') {
+              return (
+                <video
+                  key={`${url}-${index}`}
+                  src={url}
+                  muted
+                  controls
+                  playsInline
+                  preload='metadata'
+                  style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 6, background: '#000' }}
+                />
+              );
+            }
+
+            return (
+              <img
+                key={`${url}-${index}`}
+                src={url}
+                alt='Property preview'
+                style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 6 }}
+              />
+            );
+          })}
         </div>
       ) : (
-        <p>{multiple ? 'Drag & drop or click to upload images' : 'Drag & drop or click to upload image'}</p>
+        <p>{multiple ? 'Drag & drop or click to upload photos or motion videos' : 'Drag & drop or click to upload a photo or motion video'}</p>
       )}
     </div>
   );

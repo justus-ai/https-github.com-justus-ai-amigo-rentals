@@ -2,6 +2,7 @@ import React from 'react';
 import './Header.css';
 import { Phone, Mail, MessageCircle } from 'lucide-react';
 import { KNOWN_PROPERTY_TYPES, groupPropertiesByKnownType } from '../../utils/propertyTypes';
+import { getPrimaryPropertyImage } from '../../utils/propertyImages';
 
 const Header = ({
   contactPhone,
@@ -13,13 +14,7 @@ const Header = ({
   onPropertySelect = () => {},
 }) => {
   const groupedProperties = groupPropertiesByKnownType(properties);
-  const getCoverImage = (property) => {
-    if (Array.isArray(property?.images) && property.images.length > 0) {
-      return property.images[0];
-    }
-
-    return property?.image || '';
-  };
+  const getCoverImage = (property) => getPrimaryPropertyImage(property);
 
   const getTypeList = (type) =>
     (groupedProperties[type] || []).filter((property) => Boolean(getCoverImage(property)));

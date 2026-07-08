@@ -3,5 +3,11 @@
   height: 12.5rem;
   background-position: center;
   position: relative;
+  cursor: pointer;
 
+}
+
+.property-image:focus-visible {
+  outline: 3px solid #0ea5e9;
+  outline-offset: -3px;
 }

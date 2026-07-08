@@ -21,7 +21,7 @@ const corsOrigins = (process.env.CORS_ORIGINS || '')
 
 app.use(helmet());
 app.use('/api/payments/stripe/webhook', express.raw({ type: 'application/json' }));
-app.use(express.json({ limit: '1mb' }));
+app.use(express.json({ limit: '50mb' }));
 app.use(
   cors({
     origin: corsOrigins.length ? corsOrigins : true,
@@ -215,6 +215,8 @@ db.prepare("UPDATE properties SET title = REPLACE(title, 'Cottage', 'Maisonette'
 db.prepare("UPDATE properties SET title = REPLACE(title, 'cottage', 'maisonette') WHERE title LIKE '%cottage%'").run();
 db.prepare("UPDATE properties SET description = REPLACE(description, 'Cottage', 'Maisonette') WHERE description LIKE '%Cottage%'").run();
 db.prepare("UPDATE properties SET description = REPLACE(description, 'cottage', 'maisonette') WHERE description LIKE '%cottage%'").run();
+db.prepare("UPDATE properties SET image = REPLACE(image, 'http://localhost:5000/uploads/', '/uploads/') WHERE image LIKE 'http://localhost:5000/uploads/%'").run();
+db.prepare("UPDATE properties SET images = REPLACE(images, 'http://localhost:5000/uploads/', '/uploads/') WHERE images LIKE '%http://localhost:5000/uploads/%'").run();
 
 const adminCount = db.prepare('SELECT COUNT(*) AS count FROM admins').get().count;
 if (adminCount === 0) {
@@ -244,7 +246,27 @@ AWS.config.update({
 const s3 = new AWS.S3();
 const BUCKET = process.env.AWS_S3_BUCKET || 'amigo-rentals-images';
 const useLegacyObjectAcl = String(process.env.AWS_S3_USE_OBJECT_ACL || '').toLowerCase() === 'true';
-const allowedMimeTypes = new Set(['image/jpeg', 'image/png', 'image/webp']);
+const hasS3Credentials = Boolean(process.env.AWS_ACCESS_KEY_ID) && Boolean(process.env.AWS_SECRET_ACCESS_KEY);
+const localUploadsDir = path.join(__dirname, 'data', 'uploads');
+
+if (!fs.existsSync(localUploadsDir)) {
+  fs.mkdirSync(localUploadsDir, { recursive: true });
+}
+
+const allowedMimeTypes = new Set([
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'image/gif',
+  'image/heic',
+  'image/heif',
+  'video/mp4',
+  'video/quicktime',
+  'video/webm',
+  'video/x-m4v',
+  'video/3gpp',
+  'video/ogg',
+]);
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY || '';
 const stripePublishableKey = process.env.VITE_STRIPE_PUBLISHABLE_KEY || '';
 const stripeWebhookSecret = process.env.STRIPE_WEBHOOK_SECRET || '';
@@ -581,7 +603,8 @@ const normalizePropertyInput = (input = {}) => {
 
   const normalizedImages = imageCandidates
     .map((value) => String(value || '').trim())
-    .filter(Boolean);
+    .filter(Boolean)
+    .slice(0, 6);
 
   if (!normalizedImages.length && input.image) {
     normalizedImages.push(String(input.image).trim());
@@ -1707,6 +1730,12 @@ app.get('/sign-s3', requireAuth, (req, res) => {
     return res.status(400).json({ error: 'Invalid filename' });
   }
 
+  if (!hasS3Credentials) {
+    const uniqueFilename = `${Date.now()}-${crypto.randomBytes(6).toString('hex')}-${safeFilename}`;
+    const uploadUrl = `/uploads/${encodeURIComponent(uniqueFilename)}`;
+    return res.json({ url: uploadUrl });
+  }
+
   const params = {
     Bucket: BUCKET,
     Key: safeFilename,
@@ -1726,6 +1755,45 @@ app.get('/sign-s3', requireAuth, (req, res) => {
     }
     res.json({ url });
   });
+});
+
+app.put('/uploads/:filename', requireAuth, express.raw({ type: '*/*', limit: '55mb' }), (req, res) => {
+  const filetypeHeader = String(req.get('Content-Type') || '').split(';')[0].trim().toLowerCase();
+  if (!allowedMimeTypes.has(filetypeHeader)) {
+    return res.status(400).json({ error: 'Unsupported filetype' });
+  }
+
+  const safeFilename = sanitizeFilename(req.params.filename);
+  if (!safeFilename) {
+    return res.status(400).json({ error: 'Invalid filename' });
+  }
+
+  const payload = Buffer.isBuffer(req.body)
+    ? req.body
+    : Buffer.from(req.body || '');
+
+  if (!payload.length) {
+    return res.status(400).json({ error: 'Missing upload body' });
+  }
+
+  try {
+    fs.writeFileSync(path.join(localUploadsDir, safeFilename), payload);
+    return res.status(200).end();
+  } catch (error) {
+    return res.status(500).json({ error: error.message || 'Unable to persist upload locally.' });
+  }
+});
+
+app.use('/uploads', express.static(localUploadsDir));
+
+app.use((error, _req, res, next) => {
+  if (error?.type === 'entity.too.large') {
+    return res.status(413).json({
+      error: 'Request payload is too large. Remove oversized embedded media and re-upload as hosted files.',
+    });
+  }
+
+  return next(error);
 });
 
 const distPath = path.join(__dirname, 'dist');

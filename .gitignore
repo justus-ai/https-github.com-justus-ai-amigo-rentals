@@ -6,3 +6,4 @@ build/
 *.log
 data/
 *.db
+/dist-build
