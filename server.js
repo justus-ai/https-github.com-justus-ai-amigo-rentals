@@ -236,17 +236,20 @@ if (adminCount === 0) {
   console.log(`Seeded initial admin user: ${username}`);
 }
 
-// Configure AWS
+// Configure AWS — trim all env vars to strip any accidental newlines from copy-paste
+const AWS_REGION = (process.env.AWS_REGION || 'us-east-1').trim();
+const AWS_ACCESS_KEY_ID = (process.env.AWS_ACCESS_KEY_ID || '').trim();
+const AWS_SECRET_ACCESS_KEY = (process.env.AWS_SECRET_ACCESS_KEY || '').trim();
 AWS.config.update({
-  accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-  region: process.env.AWS_REGION || 'us-east-1',
+  accessKeyId: AWS_ACCESS_KEY_ID,
+  secretAccessKey: AWS_SECRET_ACCESS_KEY,
+  region: AWS_REGION,
 });
 
 const s3 = new AWS.S3();
-const BUCKET = process.env.AWS_S3_BUCKET || 'amigo-rentals-images';
+const BUCKET = (process.env.AWS_S3_BUCKET || 'amigo-rentals-images').trim();
 const useLegacyObjectAcl = String(process.env.AWS_S3_USE_OBJECT_ACL || '').toLowerCase() === 'true';
-const hasS3Credentials = Boolean(process.env.AWS_ACCESS_KEY_ID) && Boolean(process.env.AWS_SECRET_ACCESS_KEY);
+const hasS3Credentials = Boolean(AWS_ACCESS_KEY_ID) && Boolean(AWS_SECRET_ACCESS_KEY);
 const localUploadsDir = path.join(__dirname, 'data', 'uploads');
 
 if (!fs.existsSync(localUploadsDir)) {
@@ -1737,8 +1740,7 @@ app.get('/sign-s3', requireAuth, (req, res) => {
   }
 
   const s3Key = `${Date.now()}-${crypto.randomBytes(6).toString('hex')}-${safeFilename}`;
-  const region = process.env.AWS_REGION || 'us-east-1';
-  const publicUrl = `https://${BUCKET}.s3.${region}.amazonaws.com/${s3Key}`;
+  const publicUrl = `https://${BUCKET}.s3.${AWS_REGION}.amazonaws.com/${s3Key}`;
 
   const params = {
     Bucket: BUCKET,
