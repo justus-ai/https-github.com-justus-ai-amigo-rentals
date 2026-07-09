@@ -75,8 +75,14 @@ async function getPresignedUrl(file) {
     if (!url) {
       throw new Error('Upload signer response is missing a URL.');
     }
-    // publicUrl falls back to url for backwards-compat with older server deployments
-    return { url, publicUrl: publicUrl || url };
+    // If the server returned a relative path (local fallback mode), make it
+    // absolute against the API origin — the frontend may be on a different host.
+    const resolveUrl = (u) => {
+      if (!u) return u;
+      if (u.startsWith('/')) return `${API_BASE_URL}${u}`;
+      return u;
+    };
+    return { url: resolveUrl(url), publicUrl: resolveUrl(publicUrl || url) };
   } catch (error) {
     if (error.name === 'AbortError') {
       throw new Error('Upload request timed out. Check your internet connection.');
@@ -117,11 +123,15 @@ async function uploadFileToS3(file, presignedUrl) {
       signal: controller.signal,
     });
     if (!res.ok) {
-      throw new Error(`Upload failed with status ${res.status}`);
+      throw new Error(`Upload failed with status ${res.status} (${presignedUrl.split('?')[0]})`);
     }
   } catch (error) {
     if (error.name === 'AbortError') {
       throw new Error('Upload timed out. Your file may be too large or connection is slow.');
+    }
+    // Annotate network-level failures with the target URL for easier debugging
+    if (error.message === 'Load failed' || error.message === 'Failed to fetch' || error.message === 'NetworkError when attempting to fetch resource.') {
+      throw new Error(`Network error uploading to ${presignedUrl.split('?')[0]} — check S3 bucket CORS or server availability.`);
     }
     throw error;
   } finally {
