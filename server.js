@@ -1718,47 +1718,91 @@ app.post('/api/payments/refund', requireAuth, async (req, res) => {
   return res.status(400).json({ error: 'Unsupported payment provider for refunds.' });
 });
 
-app.get('/sign-s3', requireAuth, (req, res) => {
-  const { filename, filetype } = req.query;
-  if (!filename || !filetype) {
-    return res.status(400).json({ error: 'Missing filename or filetype' });
-  }
+// Server-side proxy upload: browser POSTs the file here, server uploads to S3.
+// This avoids requiring any S3 bucket CORS configuration.
+app.post('/api/upload', requireAuth, express.raw({ type: '*/*', limit: '55mb' }), (req, res) => {
+  const filename = String(req.query.filename || '');
+  const filetype = String(req.query.filetype || '').split(';')[0].trim().toLowerCase();
 
+  if (!filename || !filetype) {
+    return res.status(400).json({ error: 'Missing filename or filetype query params' });
+  }
   if (!allowedMimeTypes.has(filetype)) {
     return res.status(400).json({ error: 'Unsupported filetype' });
   }
-
   const safeFilename = sanitizeFilename(filename);
   if (!safeFilename) {
     return res.status(400).json({ error: 'Invalid filename' });
   }
 
+  const payload = Buffer.isBuffer(req.body) ? req.body : Buffer.from(req.body || '');
+  if (!payload.length) {
+    return res.status(400).json({ error: 'Empty upload body' });
+  }
+
+  const uniqueKey = `${Date.now()}-${crypto.randomBytes(6).toString('hex')}-${safeFilename}`;
+
+  if (!hasS3Credentials) {
+    // Local disk fallback
+    try {
+      fs.writeFileSync(path.join(localUploadsDir, uniqueKey), payload);
+      const publicUrl = `/uploads/${encodeURIComponent(uniqueKey)}`;
+      return res.json({ publicUrl });
+    } catch (err) {
+      return res.status(500).json({ error: err.message || 'Failed to save file locally' });
+    }
+  }
+
+  const params = {
+    Bucket: BUCKET,
+    Key: uniqueKey,
+    Body: payload,
+    ContentType: filetype,
+  };
+  if (useLegacyObjectAcl) {
+    params.ACL = 'public-read';
+  }
+
+  s3.putObject(params, (err) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    const publicUrl = `https://${BUCKET}.s3.${AWS_REGION}.amazonaws.com/${uniqueKey}`;
+    return res.json({ publicUrl });
+  });
+});
+
+// Legacy: keep /sign-s3 for backwards compatibility but it is no longer used by the frontend.
+app.get('/sign-s3', requireAuth, (req, res) => {
+  const { filename, filetype } = req.query;
+  if (!filename || !filetype) {
+    return res.status(400).json({ error: 'Missing filename or filetype' });
+  }
+  if (!allowedMimeTypes.has(filetype)) {
+    return res.status(400).json({ error: 'Unsupported filetype' });
+  }
+  const safeFilename = sanitizeFilename(filename);
+  if (!safeFilename) {
+    return res.status(400).json({ error: 'Invalid filename' });
+  }
   if (!hasS3Credentials) {
     const uniqueFilename = `${Date.now()}-${crypto.randomBytes(6).toString('hex')}-${safeFilename}`;
     const uploadUrl = `/uploads/${encodeURIComponent(uniqueFilename)}`;
     return res.json({ url: uploadUrl, publicUrl: uploadUrl });
   }
-
   const s3Key = `${Date.now()}-${crypto.randomBytes(6).toString('hex')}-${safeFilename}`;
   const publicUrl = `https://${BUCKET}.s3.${AWS_REGION}.amazonaws.com/${s3Key}`;
-
   const params = {
     Bucket: BUCKET,
     Key: s3Key,
-    Expires: 300, // 5 minutes — only needed for the upload itself
+    Expires: 300,
     ContentType: filetype,
   };
-
-  // New S3 buckets often use bucket-owner-enforced mode where ACL headers are rejected.
-  // Keep ACL optional for legacy buckets that still require object-level ACLs.
   if (useLegacyObjectAcl) {
     params.ACL = 'public-read';
   }
-
   s3.getSignedUrl('putObject', params, (err, url) => {
-    if (err) {
-      return res.status(500).json({ error: err.message });
-    }
+    if (err) return res.status(500).json({ error: err.message });
     res.json({ url, publicUrl });
   });
 });

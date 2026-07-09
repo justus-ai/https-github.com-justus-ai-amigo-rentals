@@ -93,45 +93,43 @@ async function getPresignedUrl(file) {
   }
 }
 
-// Upload file to S3 using the pre-signed URL
-async function uploadFileToS3(file, presignedUrl) {
-  // Use detected MIME type for Content-Type header (important for mobile)
-  const contentType = file.type || getMimeTypeFromFilename(file.name);
-  const headers = { 'Content-Type': contentType };
+// Upload file via the server proxy — server forwards to S3, no S3 CORS needed.
+async function uploadViaServer(file) {
+  const token = localStorage.getItem(AUTH_TOKEN_STORAGE_KEY);
+  const filetype = file.type || getMimeTypeFromFilename(file.name);
+  const headers = {
+    'Content-Type': filetype,
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 45000); // 45 second timeout
 
   try {
-    const uploadUrl = new URL(presignedUrl, window.location.origin);
-    const isLocalFallbackUpload = uploadUrl.pathname.startsWith('/uploads/') && !uploadUrl.hostname.includes('amazonaws.com');
-    if (isLocalFallbackUpload) {
-      const token = localStorage.getItem(AUTH_TOKEN_STORAGE_KEY);
-      if (token) {
-        headers.Authorization = `Bearer ${token}`;
-      }
-    }
-  } catch {
-    // Keep default headers when URL parsing fails.
-  }
-  
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout
-  
-  try {
-    const res = await fetch(presignedUrl, {
-      method: 'PUT',
+    const url = `${API_BASE_URL}/api/upload?filename=${encodeURIComponent(file.name)}&filetype=${encodeURIComponent(filetype)}`;
+    const res = await fetch(url, {
+      method: 'POST',
       headers,
       body: file,
       signal: controller.signal,
     });
+
+    const contentType = res.headers.get('content-type') || '';
+    const isJson = contentType.includes('application/json');
+    const data = isJson ? await res.json().catch(() => ({})) : {};
+
     if (!res.ok) {
-      throw new Error(`Upload failed with status ${res.status} (${presignedUrl.split('?')[0]})`);
+      throw new Error((data && data.error) || `Upload failed with status ${res.status}`);
     }
+
+    const { publicUrl } = data;
+    if (!publicUrl) throw new Error('Server did not return a publicUrl after upload.');
+
+    // Resolve relative URLs (local fallback) against the API origin
+    return publicUrl.startsWith('/') ? `${API_BASE_URL}${publicUrl}` : publicUrl;
   } catch (error) {
     if (error.name === 'AbortError') {
       throw new Error('Upload timed out. Your file may be too large or connection is slow.');
-    }
-    // Annotate network-level failures with the target URL for easier debugging
-    if (error.message === 'Load failed' || error.message === 'Failed to fetch' || error.message === 'NetworkError when attempting to fetch resource.') {
-      throw new Error(`Network error uploading to ${presignedUrl.split('?')[0]} — check S3 bucket CORS or server availability.`);
     }
     throw error;
   } finally {
@@ -140,10 +138,7 @@ async function uploadFileToS3(file, presignedUrl) {
 }
 
 async function uploadWithFallback(file) {
-  const { url: presignedUrl, publicUrl } = await getPresignedUrl(file);
-  await uploadFileToS3(file, presignedUrl);
-  // Return the permanent public URL — NOT the presigned URL which expires in minutes.
-  return publicUrl;
+  return uploadViaServer(file);
 }
 
 // Main component
