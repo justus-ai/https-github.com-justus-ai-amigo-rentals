@@ -1733,13 +1733,17 @@ app.get('/sign-s3', requireAuth, (req, res) => {
   if (!hasS3Credentials) {
     const uniqueFilename = `${Date.now()}-${crypto.randomBytes(6).toString('hex')}-${safeFilename}`;
     const uploadUrl = `/uploads/${encodeURIComponent(uniqueFilename)}`;
-    return res.json({ url: uploadUrl });
+    return res.json({ url: uploadUrl, publicUrl: uploadUrl });
   }
+
+  const s3Key = `${Date.now()}-${crypto.randomBytes(6).toString('hex')}-${safeFilename}`;
+  const region = process.env.AWS_REGION || 'us-east-1';
+  const publicUrl = `https://${BUCKET}.s3.${region}.amazonaws.com/${s3Key}`;
 
   const params = {
     Bucket: BUCKET,
-    Key: safeFilename,
-    Expires: 86400 * 7, // 7 days - presigned URLs need to stay valid for viewing images
+    Key: s3Key,
+    Expires: 300, // 5 minutes — only needed for the upload itself
     ContentType: filetype,
   };
 
@@ -1753,7 +1757,7 @@ app.get('/sign-s3', requireAuth, (req, res) => {
     if (err) {
       return res.status(500).json({ error: err.message });
     }
-    res.json({ url });
+    res.json({ url, publicUrl });
   });
 });
 

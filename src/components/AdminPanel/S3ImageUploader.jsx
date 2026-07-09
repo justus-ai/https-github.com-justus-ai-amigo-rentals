@@ -36,6 +36,7 @@ function getMimeTypeFromFilename(filename) {
 }
 
 // Helper to get a pre-signed URL from your backend
+// Returns { url: presignedUploadUrl, publicUrl: permanentStorageUrl }
 async function getPresignedUrl(file) {
   const token = localStorage.getItem(AUTH_TOKEN_STORAGE_KEY);
   const headers = token ? { Authorization: `Bearer ${token}` } : {};
@@ -70,11 +71,12 @@ async function getPresignedUrl(file) {
       throw new Error(message);
     }
 
-    const { url } = payload;
+    const { url, publicUrl } = payload;
     if (!url) {
       throw new Error('Upload signer response is missing a URL.');
     }
-    return url;
+    // publicUrl falls back to url for backwards-compat with older server deployments
+    return { url, publicUrl: publicUrl || url };
   } catch (error) {
     if (error.name === 'AbortError') {
       throw new Error('Upload request timed out. Check your internet connection.');
@@ -93,7 +95,7 @@ async function uploadFileToS3(file, presignedUrl) {
 
   try {
     const uploadUrl = new URL(presignedUrl, window.location.origin);
-    const isLocalFallbackUpload = uploadUrl.pathname.startsWith('/uploads/');
+    const isLocalFallbackUpload = uploadUrl.pathname.startsWith('/uploads/') && !uploadUrl.hostname.includes('amazonaws.com');
     if (isLocalFallbackUpload) {
       const token = localStorage.getItem(AUTH_TOKEN_STORAGE_KEY);
       if (token) {
@@ -128,10 +130,10 @@ async function uploadFileToS3(file, presignedUrl) {
 }
 
 async function uploadWithFallback(file) {
-  const presignedUrl = await getPresignedUrl(file);
+  const { url: presignedUrl, publicUrl } = await getPresignedUrl(file);
   await uploadFileToS3(file, presignedUrl);
-  // Return the full presigned URL (with auth params) so the media can be viewed.
-  return presignedUrl;
+  // Return the permanent public URL — NOT the presigned URL which expires in minutes.
+  return publicUrl;
 }
 
 // Main component
