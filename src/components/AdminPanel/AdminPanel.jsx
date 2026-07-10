@@ -173,7 +173,7 @@ const AdminPanel = ({
 }) => {
   const [selectedId, setSelectedId] = useState(null);
   const [form, setForm] = useState(EMPTY_PROPERTY);
-  const [message, setMessage] = useState('');
+  const [notice, setNotice] = useState(null);
   const [siteForm, setSiteForm] = useState(siteContent);
   const [newAdminUsername, setNewAdminUsername] = useState('');
   const [newAdminPassword, setNewAdminPassword] = useState('');
@@ -248,6 +248,44 @@ const AdminPanel = ({
 
     return () => clearInterval(intervalId);
   }, [autoRefreshEnabled, onRefreshEnquiries]);
+
+  const pushNotice = (text, type = 'success') => {
+    const message = String(text || '').trim();
+    if (!message) {
+      return;
+    }
+
+    setNotice({
+      id: Date.now() + Math.random(),
+      text: message,
+      type,
+    });
+  };
+
+  const setMessage = (text, explicitType) => {
+    const message = String(text || '').trim();
+    if (!message) {
+      return;
+    }
+
+    const isError =
+      explicitType === 'error' ||
+      /unable|error|failed|required|must|too large|does not match|pick a property|only\s+\d+|cannot/i.test(message);
+
+    pushNotice(message, isError ? 'error' : 'success');
+  };
+
+  useEffect(() => {
+    if (!notice?.id) {
+      return undefined;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setNotice(null);
+    }, 7000);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [notice?.id]);
 
   const selectedProperty = useMemo(
     () => properties.find((property) => property.id === selectedId),
@@ -444,6 +482,11 @@ const AdminPanel = ({
       return;
     }
 
+    if (!form.title.trim() || !form.type.trim()) {
+      setMessage('Type and title are required before saving a property.');
+      return;
+    }
+
     try {
       const { payload, sanitizedImages, removedEmbeddedMediaCount } = toPropertyPayload();
       if (removedEmbeddedMediaCount > 0) {
@@ -588,7 +631,23 @@ const AdminPanel = ({
         </div>
       </div>
 
-      {message && <p className='admin-panel-message'>{message}</p>}
+      {notice && (
+        <div
+          className={`admin-toast ${notice.type === 'error' ? 'is-error' : 'is-success'}`}
+          role='status'
+          aria-live='polite'
+        >
+          <button
+            type='button'
+            className='admin-toast-close'
+            onClick={() => setNotice(null)}
+            aria-label='Close notification'
+          >
+            ×
+          </button>
+          <p>{notice.text}</p>
+        </div>
+      )}
 
       <div className='admin-grid'>
         <aside className='admin-list'>
@@ -624,10 +683,15 @@ const AdminPanel = ({
             }}
           >
             <h3>Property Editor</h3>
+            <p className='note'>Fields marked with <span className='required-mark' aria-hidden='true'>*</span> are required.</p>
             <div className='form-grid'>
               <label>
-                Type
-                <select value={form.type} onChange={(event) => handleChange('type', event.target.value)}>
+                Type <span className='required-mark' aria-hidden='true'>*</span>
+                <select
+                  value={form.type}
+                  onChange={(event) => handleChange('type', event.target.value)}
+                  required
+                >
                   <option value=''>Select property type</option>
                   {KNOWN_PROPERTY_TYPES.map((type) => (
                     <option key={type} value={type}>{type}</option>
@@ -635,15 +699,19 @@ const AdminPanel = ({
                 </select>
               </label>
               <label>
-                Title
-                <input value={form.title} onChange={(event) => handleChange('title', event.target.value)} />
+                Title <span className='required-mark' aria-hidden='true'>*</span>
+                <input
+                  value={form.title}
+                  onChange={(event) => handleChange('title', event.target.value)}
+                  required
+                />
               </label>
               <label>
                 Location
                 <input value={form.location} onChange={(event) => handleChange('location', event.target.value)} />
               </label>
               <label>
-                Price (KES)
+                Rent Price (KES)
                 <input type='number' value={form.price} onChange={(event) => handleChange('price', event.target.value)} />
               </label>
               <label>
@@ -655,7 +723,7 @@ const AdminPanel = ({
                 <input type='number' value={form.bathrooms} onChange={(event) => handleChange('bathrooms', event.target.value)} />
               </label>
               <label>
-                Area (m2)
+                Floor Size (m²)
                 <input type='number' value={form.area} onChange={(event) => handleChange('area', event.target.value)} />
               </label>
               <label>

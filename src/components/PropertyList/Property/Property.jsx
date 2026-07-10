@@ -38,7 +38,7 @@ const Property = ({
         <div className='property-image-meta'>
           <IconWithText icon={Bed} text={`${bedrooms} Beds`} className='overlay' />
           <IconWithText icon={Bath} text={`${bathrooms} Baths`} className='overlay' />
-          <IconWithText icon={Maximize} text={`${area} m2`} className='overlay' />
+          <IconWithText icon={Maximize} text={`${area} m²`} className='overlay' />
         </div>
       </PropertyImage>
 

@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import Header from './components/Header/Header';
-import Title from './components/Title/Title';
 import PropertyList from './components/PropertyList/PropertyList';
 import Footer from './components/Footer/Footer';
 import AdminLogin from './components/AdminLogin/AdminLogin';
@@ -309,18 +308,7 @@ const App = () => {
         isAuthenticated={isAuthenticated}
         isAdminMode={isAdminMode}
         onToggleAdmin={() => setIsAdminMode((previous) => !previous)}
-        properties={properties}
-        onPropertySelect={(property) => {
-          // Scroll to property card or filter, for now just highlight
-          const el = document.getElementById(`property-${property.id}`);
-          if (el) {
-            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            el.classList.add('highlight-property');
-            setTimeout(() => el.classList.remove('highlight-property'), 2000);
-          }
-        }}
       />
-      <Title title={currentPage === 'home' ? siteContent.pageTitle : 'Customer Information'} />
       <main className='app-main'>
         {currentPage === 'home' && !isAdminMode && (
           <>

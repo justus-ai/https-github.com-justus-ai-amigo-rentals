@@ -50,6 +50,56 @@
   font-weight: 600;
 }
 
+.admin-toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%);
+  width: min(32rem, calc(100vw - 1.2rem));
+  border-radius: 0.75rem;
+  border: 1px solid transparent;
+  padding: 0.85rem 2.2rem 0.8rem 0.9rem;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.28);
+  z-index: 1400;
+}
+
+.admin-toast p {
+  margin: 0;
+  font-size: 0.94rem;
+  line-height: 1.35;
+  font-weight: 600;
+}
+
+.admin-toast.is-success {
+  background: #dcfce7;
+  border-color: #86efac;
+  color: #166534;
+}
+
+.admin-toast.is-error {
+  background: #fee2e2;
+  border-color: #fca5a5;
+  color: #991b1b;
+}
+
+.admin-toast-close {
+  position: absolute;
+  top: 0.38rem;
+  right: 0.45rem;
+  width: 1.35rem;
+  height: 1.35rem;
+  border: none;
+  border-radius: 999px;
+  background: rgba(17, 24, 39, 0.08);
+  color: inherit;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  font-size: 1rem;
+  line-height: 1;
+}
+
 .admin-grid {
   display: grid;
   grid-template-columns: 16rem 1fr;
@@ -112,6 +162,11 @@
   gap: 0.35rem;
   font-weight: 600;
   align-content: start;
+}
+
+.required-mark {
+  color: #dc2626;
+  font-weight: 800;
 }
 
 .admin-form input:not([type='checkbox']),

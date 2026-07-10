@@ -1,8 +1,6 @@
 import React from 'react';
 import './Header.css';
 import { Phone, Mail, MessageCircle } from 'lucide-react';
-import { KNOWN_PROPERTY_TYPES, groupPropertiesByKnownType } from '../../utils/propertyTypes';
-import { getPrimaryPropertyImage } from '../../utils/propertyImages';
 
 const Header = ({
   contactPhone,
@@ -10,15 +8,7 @@ const Header = ({
   isAuthenticated,
   isAdminMode,
   onToggleAdmin,
-  properties = [],
-  onPropertySelect = () => {},
 }) => {
-  const groupedProperties = groupPropertiesByKnownType(properties);
-  const getCoverImage = (property) => getPrimaryPropertyImage(property);
-
-  const getTypeList = (type) =>
-    (groupedProperties[type] || []).filter((property) => Boolean(getCoverImage(property)));
-
   return (
     <header className="header">
       <div className='item brand'>
@@ -46,31 +36,6 @@ const Header = ({
               ? 'Open Admin'
               : 'Admin Login'}
         </button>
-      </div>
-      <div className="property-dropdowns spaced">
-        {KNOWN_PROPERTY_TYPES.map((type) => (
-          <div className="dropdown" key={type}>
-            <button className="dropbtn">{type}</button>
-            <div className="dropdown-content">
-              {getTypeList(type).length === 0 && (
-                <span className="dropdown-empty">No properties</span>
-              )}
-              {getTypeList(type).map((p) => (
-                <a
-                  href="#"
-                  key={p.id}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    onPropertySelect(p);
-                  }}
-                >
-                  <img src={getCoverImage(p)} alt={p.title} className="dropdown-img" />
-                  {p.title}
-                </a>
-              ))}
-            </div>
-          </div>
-        ))}
       </div>
     </header>
   );

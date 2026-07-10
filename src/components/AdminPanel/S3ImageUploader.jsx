@@ -1,6 +1,7 @@
 import React from 'react';
 import { API_BASE_URL } from '../../utils/apiBaseUrl';
 import { detectMediaType } from '../../utils/propertyImages';
+
 const AUTH_TOKEN_STORAGE_KEY = 'amigo-rentals-auth-token';
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB limit
 
@@ -35,23 +36,24 @@ function getMimeTypeFromFilename(filename) {
   return mimeMap[ext] || 'image/jpeg';
 }
 
-// Helper to get a pre-signed URL from your backend
+// Helper to get a pre-signed URL from backend.
 // Returns { url: presignedUploadUrl, publicUrl: permanentStorageUrl }
 async function getPresignedUrl(file) {
   const token = localStorage.getItem(AUTH_TOKEN_STORAGE_KEY);
   const headers = token ? { Authorization: `Bearer ${token}` } : {};
-  
-  // Use file.type if available, otherwise detect from filename (mobile fallback)
   const filetype = file.type || getMimeTypeFromFilename(file.name);
-  
+
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
-  
+  const timeoutId = setTimeout(() => controller.abort(), 15000);
+
   try {
-    const res = await fetch(`${API_BASE_URL}/sign-s3?filename=${encodeURIComponent(file.name)}&filetype=${encodeURIComponent(filetype)}`, {
-      headers,
-      signal: controller.signal,
-    });
+    const res = await fetch(
+      `${API_BASE_URL}/sign-s3?filename=${encodeURIComponent(file.name)}&filetype=${encodeURIComponent(filetype)}`,
+      {
+        headers,
+        signal: controller.signal,
+      }
+    );
 
     const contentType = res.headers.get('content-type') || '';
     const isJson = contentType.includes('application/json');
@@ -60,7 +62,9 @@ async function getPresignedUrl(file) {
     const looksLikeHtml = !isJson && /<!doctype html>|<html[\s>]/i.test(text);
 
     if (looksLikeHtml) {
-      throw new Error(`Upload signer returned a web page. Check VITE_API_BASE_URL (current: ${API_BASE_URL || window.location.origin}).`);
+      throw new Error(
+        `Upload signer returned a web page. Check VITE_API_BASE_URL (current: ${API_BASE_URL || window.location.origin}).`
+      );
     }
 
     if (!res.ok) {
@@ -75,13 +79,13 @@ async function getPresignedUrl(file) {
     if (!url) {
       throw new Error('Upload signer response is missing a URL.');
     }
-    // If the server returned a relative path (local fallback mode), make it
-    // absolute against the API origin — the frontend may be on a different host.
-    const resolveUrl = (u) => {
-      if (!u) return u;
-      if (u.startsWith('/')) return `${API_BASE_URL}${u}`;
-      return u;
+
+    const resolveUrl = (value) => {
+      if (!value) return value;
+      if (value.startsWith('/')) return `${API_BASE_URL}${value}`;
+      return value;
     };
+
     return { url: resolveUrl(url), publicUrl: resolveUrl(publicUrl || url) };
   } catch (error) {
     if (error.name === 'AbortError') {
@@ -91,6 +95,25 @@ async function getPresignedUrl(file) {
   } finally {
     clearTimeout(timeoutId);
   }
+}
+
+async function uploadViaPresignedUrl(file) {
+  const filetype = file.type || getMimeTypeFromFilename(file.name);
+  const { url, publicUrl } = await getPresignedUrl(file);
+
+  const res = await fetch(url, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': filetype,
+    },
+    body: file,
+  });
+
+  if (!res.ok) {
+    throw new Error(`S3 upload failed with status ${res.status}`);
+  }
+
+  return publicUrl;
 }
 
 // Upload file via the server proxy — server forwards to S3, no S3 CORS needed.
@@ -138,7 +161,11 @@ async function uploadViaServer(file) {
 }
 
 async function uploadWithFallback(file) {
-  return uploadViaServer(file);
+  try {
+    return await uploadViaPresignedUrl(file);
+  } catch {
+    return uploadViaServer(file);
+  }
 }
 
 // Main component
@@ -221,11 +248,11 @@ const S3ImageUploader = ({
         overflow: 'hidden',
       }}
       onDrop={handleDrop}
-      onDragOver={e => e.preventDefault()}
+      onDragOver={(event) => event.preventDefault()}
     >
       <input
-        type="file"
-        accept="image/*,video/*,.heic,.heif"
+        type='file'
+        accept='image/*,video/*,.heic,.heif'
         multiple={multiple}
         style={{
           position: 'absolute',
