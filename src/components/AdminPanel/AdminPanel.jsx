@@ -686,7 +686,9 @@ const AdminPanel = ({
             <p className='note'>Fields marked with <span className='required-mark' aria-hidden='true'>*</span> are required.</p>
             <div className='form-grid'>
               <label>
-                Type <span className='required-mark' aria-hidden='true'>*</span>
+                <span className='label-title'>
+                  Type <span className='required-mark' aria-hidden='true'>*</span>
+                </span>
                 <select
                   value={form.type}
                   onChange={(event) => handleChange('type', event.target.value)}
@@ -699,7 +701,9 @@ const AdminPanel = ({
                 </select>
               </label>
               <label>
-                Title <span className='required-mark' aria-hidden='true'>*</span>
+                <span className='label-title'>
+                  Title <span className='required-mark' aria-hidden='true'>*</span>
+                </span>
                 <input
                   value={form.title}
                   onChange={(event) => handleChange('title', event.target.value)}
@@ -805,12 +809,12 @@ const AdminPanel = ({
                 )}
               </label>
               <label className='checkbox-row'>
+                Available
                 <input
                   type='checkbox'
                   checked={form.available}
                   onChange={(event) => handleChange('available', event.target.checked)}
                 />
-                Available
               </label>
             </div>
             <label>

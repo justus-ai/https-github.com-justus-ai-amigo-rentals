@@ -164,6 +164,12 @@
   align-content: start;
 }
 
+.label-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+}
+
 .required-mark {
   color: #dc2626;
   font-weight: 800;
@@ -186,10 +192,15 @@
   border-radius: 0.25rem;
 }
 
-.checkbox-row {
+.admin-form label.checkbox-row {
   display: flex;
   align-items: center;
+  justify-content: flex-start;
   gap: 0.45rem;
+}
+
+.admin-form label.checkbox-row input[type='checkbox'] {
+  margin-left: 0.25rem;
 }
 
 .editor-actions {
