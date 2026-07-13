@@ -10,9 +10,9 @@ import './PropertyGalleryModal.css';
 const SWIPE_THRESHOLD = 45;
 
 /* ── Share modal ─────────────────────────────────────────── */
-const ShareModal = ({ property, onClose }) => {
+const ShareModal = ({ property, onClose, url: propUrl }) => {
   const [copied, setCopied] = useState(false);
-  const url = window.location.href;
+  const url = propUrl || window.location.href;
 
   const copyLink = async () => {
     try {
@@ -175,7 +175,7 @@ const ContactAgentModal = ({ onClose }) => {
 };
 
 /* ── Main gallery modal ──────────────────────────────────── */
-const PropertyGalleryModal = ({ property, onClose }) => {
+const PropertyGalleryModal = ({ property, onClose, buildPropertyUrl, listingMode }) => {
   const images = useMemo(() => getPropertyImages(property), [property]);
   const mediaItems = useMemo(
     () => images.map((url) => ({ url, type: detectMediaType(url) })),
@@ -385,7 +385,7 @@ const PropertyGalleryModal = ({ property, onClose }) => {
       )}
 
       {/* ── Overlay modals ── */}
-      {showShare && <ShareModal property={property} onClose={() => setShowShare(false)} />}
+      {showShare && <ShareModal property={property} onClose={() => setShowShare(false)} url={buildPropertyUrl ? window.location.origin + window.location.pathname + buildPropertyUrl(property, listingMode) : undefined} />}
       {showContact && <ContactAgentModal property={property} onClose={() => setShowContact(false)} />}
     </div>
   );

@@ -416,6 +416,8 @@ const PropertyList = ({ properties, onBookProperty = () => {}, buildPropertyUrl 
                 <PropertyGalleryModal
                     property={activeProperty}
                     onClose={() => setActiveProperty(null)}
+                    buildPropertyUrl={buildPropertyUrl}
+                    listingMode={listingMode}
                 />
             )}
         </div>
