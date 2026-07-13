@@ -39,9 +39,40 @@
 }
 
 .property-details {
-  padding: 0.9rem 1rem 1rem;
+  padding: 0.9rem 1rem 0.6rem;
   color: #111827;
   background: #fff;
+}
+
+.property-details--link {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.property-details--link:hover {
+  background: #f9fafb;
+}
+
+.property-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0 1rem 1rem;
+  background: #fff;
+}
+
+.view-details-link {
+  font-size: 0.82rem;
+  color: #1d4ed8;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.view-details-link:hover {
+  text-decoration: underline;
 }
 
 .property-details h3 {

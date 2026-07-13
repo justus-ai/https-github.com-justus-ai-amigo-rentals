@@ -62,7 +62,7 @@ const formatBedroomOption = (value) => {
     return `${value}+`;
 };
 
-const PropertyList = ({ properties, onBookProperty = () => {} }) => {
+const PropertyList = ({ properties, onBookProperty = () => {}, buildPropertyUrl = (p, mode) => `#/property/${mode === 'buy' ? 'for-sale' : 'for-rent'}/${p.id}` }) => {
     const [activeProperty, setActiveProperty] = useState(null);
     const [listingMode, setListingMode] = useState(LISTING_MODE.RENT);
     const [searchTerm, setSearchTerm] = useState('');
@@ -404,6 +404,8 @@ const PropertyList = ({ properties, onBookProperty = () => {} }) => {
                                 {...property}
                                 onBookNow={onBookProperty}
                                 onOpenGallery={() => setActiveProperty(property)}
+                                listingMode={listingMode}
+                                buildPropertyUrl={buildPropertyUrl}
                             />
                         ))}
                     </div>

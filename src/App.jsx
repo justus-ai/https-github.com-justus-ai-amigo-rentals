@@ -8,10 +8,42 @@ import CommercialPages from './components/CommercialPages/CommercialPages';
 import CookieBanner from './components/CookieBanner/CookieBanner';
 import BookingCheckout from './components/BookingCheckout/BookingCheckout';
 import PaymentResult from './components/PaymentResult/PaymentResult';
+import PropertyDetailPage from './components/PropertyDetailPage/PropertyDetailPage';
 import './components/App.css';
 import defaultProperties from './Data/properties';
 import { trackEvent, trackPageView } from './utils/analytics';
 import { api } from './utils/api';
+
+/* ── Slug utilities ── */
+const slugify = (text) => {
+  return String(text || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^\w\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-');
+};
+
+const buildPropertySlug = (property) => {
+  const bedrooms = property.bedrooms ? `${property.bedrooms}-bedroom` : '';
+  const type = slugify(property.type);
+  const location = slugify(property.location);
+  const parts = [bedrooms, type, location].filter(Boolean);
+  return parts.join('-');
+};
+
+const buildPropertyUrl = (property, listingMode = 'rent') => {
+  const slug = buildPropertySlug(property);
+  const modeSlug = listingMode === 'buy' ? 'for-sale' : listingMode === 'rent' ? 'for-rent' : 'rent-or-sale';
+  return `#/property/${modeSlug}/${slug}-${property.id}`;
+};
+
+const extractPropertyIdFromSlug = (slugPart) => {
+  if (!slugPart) return null;
+  const lastPart = slugPart.split('-').pop();
+  const id = Number(lastPart);
+  return Number.isFinite(id) && id > 0 ? id : null;
+};
 
 const AUTH_TOKEN_STORAGE_KEY = 'amigo-rentals-auth-token';
 
@@ -22,15 +54,30 @@ const DEFAULT_SITE_CONTENT = {
   pageTitle: 'Rental Properties',
 };
 
-const VALID_PAGES = new Set(['home', 'privacy', 'terms', 'refund', 'support', 'payment-result']);
+const VALID_PAGES = new Set(['home', 'privacy', 'terms', 'refund', 'support', 'payment-result', 'property', 'login', 'admin']);
 
 const parseHashState = () => {
   const hash = window.location.hash || '#/home';
   const [routePart, queryPart = ''] = hash.replace('#/', '').split('?');
-  const normalizedPage = String(routePart || 'home').trim().toLowerCase();
-  const page = VALID_PAGES.has(normalizedPage) ? normalizedPage : 'home';
+  const segments = String(routePart || 'home').trim().toLowerCase().split('/');
+  const pageName = segments[0];
+  const page = VALID_PAGES.has(pageName) ? pageName : 'home';
   const params = Object.fromEntries(new URLSearchParams(queryPart));
-
+  if (page === 'property' && segments[1]) {
+    const mode = segments[1];
+    if (['for-sale', 'for-rent', 'rent-or-sale'].includes(mode) && segments[2]) {
+      const id = extractPropertyIdFromSlug(segments[2]);
+      if (id) {
+        params.id = id;
+        params.mode = mode === 'for-sale' ? 'buy' : mode === 'for-rent' ? 'rent' : 'mixed';
+      }
+    } else {
+      const id = extractPropertyIdFromSlug(segments[1]);
+      if (id) {
+        params.id = id;
+      }
+    }
+  }
   return { page, params };
 };
 
@@ -216,6 +263,7 @@ const App = () => {
       await loadAdmins(nextToken);
       await loadReconciliation(nextToken);
       await loadEnquiries(nextToken);
+      window.location.hash = '#/admin';
       return { ok: true };
     } catch (error) {
       return {
@@ -242,6 +290,7 @@ const App = () => {
     setAdmins({});
     setReconciliationItems([]);
     setEnquiryItems([]);
+    window.location.hash = '#/login';
   };
 
   const handleAddAdmin = async (username, password) => {
@@ -310,6 +359,44 @@ const App = () => {
         onToggleAdmin={() => setIsAdminMode((previous) => !previous)}
       />
       <main className='app-main'>
+        {currentPage === 'login' && (
+          <AdminLogin
+            onLogin={handleAdminLogin}
+            onCancel={() => { window.location.hash = '#/home'; }}
+          />
+        )}
+
+        {currentPage === 'admin' && !isAuthenticated && (
+          <AdminLogin
+            onLogin={handleAdminLogin}
+            onCancel={() => { window.location.hash = '#/home'; }}
+          />
+        )}
+
+        {currentPage === 'admin' && isAuthenticated && (
+          <AdminPanel
+            properties={properties}
+            siteContent={siteContent}
+            admins={admins}
+            currentAdmin={currentAdmin}
+            onSaveSiteContent={handleSaveSiteContent}
+            onCreateProperty={handleCreateProperty}
+            onUpdateProperty={handleUpdateProperty}
+            onDeleteProperty={handleDeleteProperty}
+            onAddAdmin={handleAddAdmin}
+            onChangeOwnPassword={handleChangeOwnPassword}
+            onDeleteAdmin={handleDeleteAdmin}
+            reconciliationItems={reconciliationItems}
+            onRefreshReconciliation={() => loadReconciliation(authToken)}
+            onRefundBooking={handleRefundBooking}
+            enquiryItems={enquiryItems}
+            onRefreshEnquiries={handleRefreshEnquiries}
+            onUpdateEnquiryStatus={handleUpdateEnquiryStatus}
+            onExit={() => { window.location.hash = '#/home'; }}
+            onLogout={handleAdminLogout}
+          />
+        )}
+
         {currentPage === 'home' && !isAdminMode && (
           <>
             {checkoutProperty && (
@@ -328,6 +415,7 @@ const App = () => {
                 });
                 setCheckoutProperty(property);
               }}
+              buildPropertyUrl={buildPropertyUrl}
             />
           </>
         )}
@@ -363,6 +451,33 @@ const App = () => {
           />
         )}
 
+        {currentPage === 'property' && (() => {
+          const pid = pageParams.id ? Number(pageParams.id) : null;
+          const found = pid ? properties.find((p) => p.id === pid) : null;
+          return (
+            <>
+              {checkoutProperty && (
+                <BookingCheckout
+                  property={checkoutProperty}
+                  onClose={() => setCheckoutProperty(null)}
+                />
+              )}
+              <PropertyDetailPage
+                property={found || null}
+                siteContent={siteContent}
+                onBookNow={(property) => {
+                  trackEvent('begin_checkout', {
+                    property_id: property.id,
+                    property_title: property.title,
+                    property_location: property.location,
+                  });
+                  setCheckoutProperty(property);
+                }}
+              />
+            </>
+          );
+        })()}
+
         {currentPage === 'payment-result' && (
           <PaymentResult
             status={pageParams.status}
@@ -371,7 +486,7 @@ const App = () => {
           />
         )}
 
-        {currentPage !== 'home' && currentPage !== 'payment-result' && (
+        {currentPage !== 'home' && currentPage !== 'payment-result' && currentPage !== 'property' && currentPage !== 'login' && currentPage !== 'admin' && (
           <CommercialPages page={currentPage} siteContent={siteContent} />
         )}
       </main>

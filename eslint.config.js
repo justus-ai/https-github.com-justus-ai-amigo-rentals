@@ -1,22 +1,37 @@
-module.exports = {
-  env: {
-    browser: true,
-    es2021: true,
+import js from '@eslint/js';
+import react from 'eslint-plugin-react';
+import globals from 'globals';
+
+export default [
+  {
+    ignores: ['dist', 'node_modules', 'build'],
   },
-  extends: [
-    'eslint:recommended',
-    'plugin:react/recommended',
-  ],
-  parserOptions: {
-    ecmaFeatures: {
-      jsx: true,
+  {
+    files: ['src/**/*.{js,jsx}'],
+    languageOptions: {
+      ecmaVersion: 'latest',
+      sourceType: 'module',
+      globals: globals.browser,
+      parserOptions: {
+        ecmaFeatures: {
+          jsx: true,
+        },
+      },
     },
-    ecmaVersion: 'latest',
-    sourceType: 'module',
+    plugins: {
+      react,
+    },
+    rules: {
+      ...js.configs.recommended.rules,
+      ...react.configs.recommended.rules,
+      'no-unused-vars': 'warn',
+      'react/prop-types': 'off',
+      'react/react-in-jsx-scope': 'off',
+    },
+    settings: {
+      react: {
+        version: 'detect',
+      },
+    },
   },
-  plugins: ['react'],
-  rules: {
-    'no-unused-vars': 'warn',
-    'react/prop-types': 'off',
-  },
-};
+];

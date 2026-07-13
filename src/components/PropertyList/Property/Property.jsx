@@ -24,8 +24,12 @@ const Property = ({
   id,
   onBookNow = () => {},
   onOpenGallery = () => {},
+  listingMode = 'rent',
+  buildPropertyUrl = (p, mode) => `#/property/${mode === 'buy' ? 'for-sale' : 'for-rent'}/${p.id}`,
 }) => {
   const coverImage = getPrimaryPropertyImage({ images, image });
+  const property = { id, title, location, price, type, bedrooms, bathrooms, area, description, available };
+  const detailHref = buildPropertyUrl(property, listingMode);
 
   return (
     <div
@@ -42,17 +46,28 @@ const Property = ({
         </div>
       </PropertyImage>
 
-      <div className='property-details'>
+      <a href={detailHref} className='property-details property-details--link'>
         <h3>{title}</h3>
         <p>{location}</p>
         <PropertyAttribute label='Rent' value={formatKES(price)} emphasize />
         <p>{description}</p>
-        {available && (
-          <button type='button' className='book-now-btn' onClick={() => onBookNow({ id, title, location, price })}>
+      </a>
+      {available ? (
+        <div className='property-actions'>
+          <button
+            type='button'
+            className='book-now-btn'
+            onClick={(e) => { e.stopPropagation(); onBookNow({ id, title, location, price }); }}
+          >
             Book Now
           </button>
-        )}
-      </div>
+          <a href={detailHref} className='view-details-link'>View Details</a>
+        </div>
+      ) : (
+        <div className='property-actions'>
+          <a href={detailHref} className='view-details-link'>View Details</a>
+        </div>
+      )}
     </div>
   );
 };

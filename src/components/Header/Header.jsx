@@ -6,8 +6,6 @@ const Header = ({
   contactPhone,
   contactEmail,
   isAuthenticated,
-  isAdminMode,
-  onToggleAdmin,
 }) => {
   return (
     <header className="header">
@@ -29,13 +27,10 @@ const Header = ({
         <span>Email: {contactEmail}</span>
       </div>
       <div className='item admin-item'>
-        <button type='button' onClick={onToggleAdmin}>
-          {isAdminMode
-            ? 'Back to Listings'
-            : isAuthenticated
-              ? 'Open Admin'
-              : 'Admin Login'}
-        </button>
+        {isAuthenticated
+          ? <a href='#/admin' className='admin-header-link'>Admin Panel</a>
+          : <a href='#/login' className='admin-header-link'>Admin Login</a>
+        }
       </div>
     </header>
   );
