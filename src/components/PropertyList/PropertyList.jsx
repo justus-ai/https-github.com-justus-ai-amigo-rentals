@@ -67,8 +67,14 @@ const PropertyList = ({ properties, onBookProperty = () => {}, buildPropertyUrl 
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedType, setSelectedType] = useState('all');
     const [selectedLocation, setSelectedLocation] = useState('all');
-    const [minPrice, setMinPrice] = useState('');
-    const [maxPrice, setMaxPrice] = useState('');
+    const [minRentPrice, setMinRentPrice] = useState('');
+    const [maxRentPrice, setMaxRentPrice] = useState('');
+    const [minPurchasePrice, setMinPurchasePrice] = useState('');
+    const [maxPurchasePrice, setMaxPurchasePrice] = useState('');
+    const [minFloorSize, setMinFloorSize] = useState('');
+    const [maxFloorSize, setMaxFloorSize] = useState('');
+    const [minLandSize, setMinLandSize] = useState('');
+    const [maxLandSize, setMaxLandSize] = useState('');
     const [minBedrooms, setMinBedrooms] = useState('');
     const [minBathrooms, setMinBathrooms] = useState('');
     const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
@@ -134,29 +140,74 @@ const PropertyList = ({ properties, onBookProperty = () => {}, buildPropertyUrl 
         return Array.from(values).sort((a, b) => a - b);
     }, [modeMatchedProperties]);
 
-    const priceOptions = useMemo(() => {
+    const rentPriceOptions = useMemo(() => {
         const values = new Set();
         modeMatchedProperties.forEach((property) => {
-            const value = getPriceForMode(property, listingMode);
+            const value = toPositiveNumber(property.price);
             if (value) {
                 values.add(value);
             }
         });
 
         return Array.from(values).sort((a, b) => a - b);
-    }, [modeMatchedProperties, listingMode]);
+    }, [modeMatchedProperties]);
+
+    const purchasePriceOptions = useMemo(() => {
+        const values = new Set();
+        modeMatchedProperties.forEach((property) => {
+            const value = toPositiveNumber(property.purchasePrice);
+            if (value) {
+                values.add(value);
+            }
+        });
+
+        return Array.from(values).sort((a, b) => a - b);
+    }, [modeMatchedProperties]);
+
+    const floorSizeOptions = useMemo(() => {
+        const values = new Set();
+        modeMatchedProperties.forEach((property) => {
+            const value = toPositiveNumber(property.area);
+            if (value) {
+                values.add(value);
+            }
+        });
+
+        return Array.from(values).sort((a, b) => a - b);
+    }, [modeMatchedProperties]);
+
+    const landSizeOptions = useMemo(() => {
+        const values = new Set();
+        modeMatchedProperties.forEach((property) => {
+            const value = toPositiveNumber(property.landSize);
+            if (value) {
+                values.add(value);
+            }
+        });
+
+        return Array.from(values).sort((a, b) => a - b);
+    }, [modeMatchedProperties]);
 
     const filteredProperties = useMemo(() => {
         const query = searchTerm.trim().toLowerCase();
-        const min = toPositiveNumber(minPrice);
-        const max = toPositiveNumber(maxPrice);
+        const minRent = toPositiveNumber(minRentPrice);
+        const maxRent = toPositiveNumber(maxRentPrice);
+        const minPurchase = toPositiveNumber(minPurchasePrice);
+        const maxPurchase = toPositiveNumber(maxPurchasePrice);
+        const minFloor = toPositiveNumber(minFloorSize);
+        const maxFloor = toPositiveNumber(maxFloorSize);
+        const minLand = toPositiveNumber(minLandSize);
+        const maxLand = toPositiveNumber(maxLandSize);
         const minBeds = toPositiveNumber(minBedrooms);
         const minBaths = toPositiveNumber(minBathrooms);
 
         return modeMatchedProperties.filter((property) => {
             const type = normalizeLabel(property.type, 'Unspecified');
             const location = normalizeLabel(property.location, 'Unknown');
-            const price = getPriceForMode(property, listingMode) || 0;
+            const rentPrice = toPositiveNumber(property.price) || 0;
+            const purchasePrice = toPositiveNumber(property.purchasePrice) || 0;
+            const floorSize = toPositiveNumber(property.area) || 0;
+            const landSize = toPositiveNumber(property.landSize) || 0;
             const bedrooms = toPositiveNumber(property.bedrooms) || 0;
             const bathrooms = toPositiveNumber(property.bathrooms) || 0;
 
@@ -168,11 +219,35 @@ const PropertyList = ({ properties, onBookProperty = () => {}, buildPropertyUrl 
                 return false;
             }
 
-            if (min && price < min) {
+            if (minRent && rentPrice < minRent) {
                 return false;
             }
 
-            if (max && price > max) {
+            if (maxRent && rentPrice > maxRent) {
+                return false;
+            }
+
+            if (minPurchase && purchasePrice < minPurchase) {
+                return false;
+            }
+
+            if (maxPurchase && purchasePrice > maxPurchase) {
+                return false;
+            }
+
+            if (minFloor && floorSize < minFloor) {
+                return false;
+            }
+
+            if (maxFloor && floorSize > maxFloor) {
+                return false;
+            }
+
+            if (minLand && landSize < minLand) {
+                return false;
+            }
+
+            if (maxLand && landSize > maxLand) {
                 return false;
             }
 
@@ -198,11 +273,16 @@ const PropertyList = ({ properties, onBookProperty = () => {}, buildPropertyUrl 
         searchTerm,
         selectedType,
         selectedLocation,
-        minPrice,
-        maxPrice,
+        minRentPrice,
+        maxRentPrice,
+        minPurchasePrice,
+        maxPurchasePrice,
+        minFloorSize,
+        maxFloorSize,
+        minLandSize,
+        maxLandSize,
         minBedrooms,
         minBathrooms,
-        listingMode,
     ]);
 
     const groupedFilteredProperties = useMemo(() => {
@@ -236,8 +316,14 @@ const PropertyList = ({ properties, onBookProperty = () => {}, buildPropertyUrl 
         setSearchTerm('');
         setSelectedType('all');
         setSelectedLocation('all');
-        setMinPrice('');
-        setMaxPrice('');
+        setMinRentPrice('');
+        setMaxRentPrice('');
+        setMinPurchasePrice('');
+        setMaxPurchasePrice('');
+        setMinFloorSize('');
+        setMaxFloorSize('');
+        setMinLandSize('');
+        setMaxLandSize('');
         setMinBedrooms('');
         setMinBathrooms('');
     };
@@ -267,21 +353,81 @@ const PropertyList = ({ properties, onBookProperty = () => {}, buildPropertyUrl 
             </label>
 
             <label>
-                Min Price
-                <select value={minPrice} onChange={(event) => setMinPrice(event.target.value)}>
+                Min Rent Price
+                <select value={minRentPrice} onChange={(event) => setMinRentPrice(event.target.value)}>
                     <option value=''>Any</option>
-                    {priceOptions.map((price) => (
-                        <option key={`min-${price}`} value={price}>{formatKES(price)}</option>
+                    {rentPriceOptions.map((price) => (
+                        <option key={`min-rent-${price}`} value={price}>{formatKES(price)}</option>
                     ))}
                 </select>
             </label>
 
             <label>
-                Max Price
-                <select value={maxPrice} onChange={(event) => setMaxPrice(event.target.value)}>
+                Max Rent Price
+                <select value={maxRentPrice} onChange={(event) => setMaxRentPrice(event.target.value)}>
                     <option value=''>Any</option>
-                    {priceOptions.map((price) => (
-                        <option key={`max-${price}`} value={price}>{formatKES(price)}</option>
+                    {rentPriceOptions.map((price) => (
+                        <option key={`max-rent-${price}`} value={price}>{formatKES(price)}</option>
+                    ))}
+                </select>
+            </label>
+
+            <label>
+                Min Purchase Price
+                <select value={minPurchasePrice} onChange={(event) => setMinPurchasePrice(event.target.value)}>
+                    <option value=''>Any</option>
+                    {purchasePriceOptions.map((price) => (
+                        <option key={`min-purchase-${price}`} value={price}>{formatKES(price)}</option>
+                    ))}
+                </select>
+            </label>
+
+            <label>
+                Max Purchase Price
+                <select value={maxPurchasePrice} onChange={(event) => setMaxPurchasePrice(event.target.value)}>
+                    <option value=''>Any</option>
+                    {purchasePriceOptions.map((price) => (
+                        <option key={`max-purchase-${price}`} value={price}>{formatKES(price)}</option>
+                    ))}
+                </select>
+            </label>
+
+            <label>
+                Min Floor Size (m²)
+                <select value={minFloorSize} onChange={(event) => setMinFloorSize(event.target.value)}>
+                    <option value=''>Any</option>
+                    {floorSizeOptions.map((size) => (
+                        <option key={`min-floor-${size}`} value={size}>{size} m²</option>
+                    ))}
+                </select>
+            </label>
+
+            <label>
+                Max Floor Size (m²)
+                <select value={maxFloorSize} onChange={(event) => setMaxFloorSize(event.target.value)}>
+                    <option value=''>Any</option>
+                    {floorSizeOptions.map((size) => (
+                        <option key={`max-floor-${size}`} value={size}>{size} m²</option>
+                    ))}
+                </select>
+            </label>
+
+            <label>
+                Min Land Size (m²)
+                <select value={minLandSize} onChange={(event) => setMinLandSize(event.target.value)}>
+                    <option value=''>Any</option>
+                    {landSizeOptions.map((size) => (
+                        <option key={`min-land-${size}`} value={size}>{size} m²</option>
+                    ))}
+                </select>
+            </label>
+
+            <label>
+                Max Land Size (m²)
+                <select value={maxLandSize} onChange={(event) => setMaxLandSize(event.target.value)}>
+                    <option value=''>Any</option>
+                    {landSizeOptions.map((size) => (
+                        <option key={`max-land-${size}`} value={size}>{size} m²</option>
                     ))}
                 </select>
             </label>
