@@ -6,7 +6,7 @@ export const trackPageView = (pageName) => {
   if (typeof window.gtag === 'function') {
     window.gtag('event', 'page_view', {
       page_title: pageName,
-      page_path: `#/${pageName}`,
+      page_path: `/${pageName}`,
     });
   }
 };

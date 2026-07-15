@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import './AdminLogin.css';
 
-const AdminLogin = ({ onLogin }) => {
+const AdminLogin = ({ onLogin, onCancel = () => {} }) => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -74,7 +74,7 @@ const AdminLogin = ({ onLogin }) => {
             <button type='submit' disabled={isSubmitting}>
               {isSubmitting ? 'Logging In...' : 'Log In'}
             </button>
-            <a href='#/home' className='admin-login-cancel'>Back to Website</a>
+            <button type='button' className='admin-login-cancel' onClick={onCancel}>Back to Website</button>
           </div>
         </form>
       </div>

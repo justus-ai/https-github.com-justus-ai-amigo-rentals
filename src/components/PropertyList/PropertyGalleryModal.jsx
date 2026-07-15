@@ -176,7 +176,7 @@ const ContactAgentModal = ({ onClose }) => {
 
 /* ── Main gallery modal ──────────────────────────────────── */
 const PropertyGalleryModal = ({ property, onClose, buildPropertyUrl, listingMode }) => {
-  const images = useMemo(() => getPropertyImages(property), [property]);
+  const images = useMemo(() => (property ? getPropertyImages(property) : []), [property]);
   const mediaItems = useMemo(
     () => images.map((url) => ({ url, type: detectMediaType(url) })),
     [images]

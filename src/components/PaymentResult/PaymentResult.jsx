@@ -37,7 +37,7 @@ const PaymentResult = ({ status, bookingId, sessionId }) => {
     <section className='payment-result'>
       <h2>Payment Status</h2>
       <p>{message}</p>
-      <a href='#/home'>Back to listings</a>
+      <a href='/home'>Back to listings</a>
     </section>
   );
 };

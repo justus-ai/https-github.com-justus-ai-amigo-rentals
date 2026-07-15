@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-  ArrowLeft, Bath, Bed, CheckCircle2, Copy,
-  Home, Image as ImageIcon, Mail, Maximize, MapPin,
+  ArrowLeft, Bath, Bed, CalendarDays, Check, CheckCircle2, Copy,
+  Hash, Home, Image as ImageIcon, Mail, MapPin, PawPrint, Scan, Tag,
+  Trees, Waves, CarFront,
   Phone, Share2, Video,
 } from 'lucide-react';
 import { formatKES } from '../../utils/currency';
@@ -44,6 +45,21 @@ const applyOGMeta = (property) => {
   setMetaTag('name', 'twitter:image', image);
 };
 
+const getPrimaryPriceText = (property) => {
+  const rent = Number(property?.price);
+  const purchase = Number(property?.purchasePrice);
+
+  if (Number.isFinite(rent) && rent > 0) {
+    return `${formatKES(rent)} / month`;
+  }
+
+  if (Number.isFinite(purchase) && purchase > 0) {
+    return `${formatKES(purchase)} purchase`;
+  }
+
+  return 'Contact for price';
+};
+
 /* ── Share popover ─────────────────────────────────────────────── */
 const SharePopover = ({ property, onClose }) => {
   const [copied, setCopied] = useState(false);
@@ -77,7 +93,7 @@ const SharePopover = ({ property, onClose }) => {
           <div className='pdp-share-preview'>
             <img src={primaryImage} alt={property.title} />
             <div>
-              <strong>{formatKES(property.price)}</strong>
+              <strong>{getPrimaryPriceText(property)}</strong>
               <span>
                 {property.bedrooms ? `${property.bedrooms} Bedroom ` : ''}
                 {property.type}
@@ -141,7 +157,7 @@ const ContactSidebar = ({ property, siteContent = {} }) => {
   });
   const [sent, setSent] = useState(false);
   const [showPhone, setShowPhone] = useState(false);
-  const whatsappText = `Hi, I'm interested in ${property.title} (${formatKES(property.price)}) – ${window.location.href}`;
+  const whatsappText = `Hi, I'm interested in ${property.title} (${getPrimaryPriceText(property)}) – ${window.location.href}`;
 
   const change = (field) => (e) => setForm((f) => ({ ...f, [field]: e.target.value }));
 
@@ -200,36 +216,49 @@ const ContactSidebar = ({ property, siteContent = {} }) => {
 };
 
 /* ── Feature row helper ────────────────────────────────────────── */
-const FeatureRow = ({ label, value }) => (
+const FeatureRow = ({ label, value, icon: Icon }) => (
   <div className='pdp-feature-row'>
+    {Icon && (
+      <span className='pdp-feature-icon' aria-hidden='true'>
+        <Icon size={16} />
+      </span>
+    )}
     <span className='pdp-feature-label'>{label}</span>
     <span className='pdp-feature-dots' aria-hidden='true' />
     <strong className='pdp-feature-value'>{value}</strong>
   </div>
 );
 
-const FeatureCheck = ({ label, available = true }) => (
+const FeatureCheck = ({ label, available = true, icon: Icon }) => (
   <div className={`pdp-feature-check ${available ? '' : 'pdp-feature-check--na'}`}>
-    <CheckCircle2 size={16} />
+    {Icon ? <Icon size={16} /> : <CheckCircle2 size={16} />}
     <span>{label}</span>
+    <Check size={14} className='pdp-feature-checkmark' aria-hidden='true' />
   </div>
 );
 
 /* ── Detail table row ──────────────────────────────────────────── */
-const DetailRow = ({ label, value }) =>
+const DetailRow = ({ label, value, icon: Icon }) =>
   value ? (
     <tr>
-      <td>{label}</td>
-      <td><strong>{value}</strong></td>
+      <td className='pdp-details-label-cell'>
+        {Icon && (
+          <span className='pdp-details-icon' aria-hidden='true'>
+            <Icon size={16} />
+          </span>
+        )}
+        <span>{label}</span>
+      </td>
+      <td className='pdp-details-value-cell'><strong>{value}</strong></td>
     </tr>
   ) : null;
 
 /* ── Main component ────────────────────────────────────────────── */
-const PropertyDetailPage = ({ property, siteContent, onBookNow = () => {} }) => {
+const PropertyDetailPage = ({ property, siteContent, onBookNow = () => {}, listingMode = 'rent' }) => {
   const [showGallery, setShowGallery] = useState(false);
   const [showShare, setShowShare] = useState(false);
 
-  const images = useMemo(() => getPropertyImages(property), [property]);
+  const images = useMemo(() => (property ? getPropertyImages(property) : []), [property]);
   const mediaItems = useMemo(
     () => images.map((url) => ({ url, type: detectMediaType(url) })),
     [images]
@@ -250,7 +279,7 @@ const PropertyDetailPage = ({ property, siteContent, onBookNow = () => {} }) => 
     return (
       <div className='pdp-not-found'>
         <h2>Property not found</h2>
-        <a href='#/home' className='pdp-back-link'>← Back to listings</a>
+        <a href='/home' className='pdp-back-link'>← Back to listings</a>
       </div>
     );
   }
@@ -260,14 +289,20 @@ const PropertyDetailPage = ({ property, siteContent, onBookNow = () => {} }) => 
     title,
     location,
     price,
+    purchasePrice,
     type,
     bedrooms,
     bathrooms,
     area,
+    landSize,
     description,
     available = true,
     features = {},
   } = property;
+
+  const hasRentPrice = Number(price) > 0;
+  const hasPurchasePrice = Number(purchasePrice) > 0;
+  const canBook = available && hasRentPrice && listingMode !== 'buy';
 
   const listingRef = `AMG-${String(id).padStart(5, '0')}`;
   const listingDate = new Date().toLocaleDateString('en-KE', { day: 'numeric', month: 'long', year: 'numeric' });
@@ -284,7 +319,7 @@ const PropertyDetailPage = ({ property, siteContent, onBookNow = () => {} }) => 
     <div className='pdp-root'>
       {/* ── Top nav bar ── */}
       <div className='pdp-topbar'>
-        <a href='#/home' className='pdp-topbar-back' aria-label='Back to listings'>
+        <a href='/home' className='pdp-topbar-back' aria-label='Back to listings'>
           <ArrowLeft size={18} />
           <span>Back</span>
         </a>
@@ -360,7 +395,23 @@ const PropertyDetailPage = ({ property, siteContent, onBookNow = () => {} }) => 
           {/* Price & title */}
           <section className='pdp-intro'>
             <div className='pdp-price-row'>
-              <h1 className='pdp-price'>{formatKES(price)}<span className='pdp-price-period'> / month</span></h1>
+              <div className='pdp-price-stack'>
+                {hasRentPrice && (
+                  <h1 className='pdp-price'>
+                    {formatKES(price)}
+                    <span className='pdp-price-period'> / month</span>
+                  </h1>
+                )}
+                {hasPurchasePrice && (
+                  <h2 className='pdp-price pdp-price--secondary'>
+                    {formatKES(purchasePrice)}
+                    <span className='pdp-price-period'> purchase</span>
+                  </h2>
+                )}
+                {!hasRentPrice && !hasPurchasePrice && (
+                  <h1 className='pdp-price'>Contact for price</h1>
+                )}
+              </div>
               {!available && <span className='pdp-occupied-badge'>Occupied</span>}
             </div>
             <h2 className='pdp-title'>
@@ -392,14 +443,21 @@ const PropertyDetailPage = ({ property, siteContent, onBookNow = () => {} }) => 
               )}
               {area && (
                 <div className='pdp-stat'>
-                  <Maximize size={18} />
+                  <Home size={18} />
                   <span>{area} m²</span>
                   <label>Floor size</label>
                 </div>
               )}
+              {landSize && (
+                <div className='pdp-stat'>
+                  <Scan size={18} />
+                  <span>{landSize} m²</span>
+                  <label>Land size</label>
+                </div>
+              )}
             </div>
 
-            {available && (
+            {canBook && (
               <button
                 type='button'
                 className='pdp-book-btn'
@@ -423,12 +481,15 @@ const PropertyDetailPage = ({ property, siteContent, onBookNow = () => {} }) => 
             <h3 className='pdp-section-title'>Property details</h3>
             <table className='pdp-details-table'>
               <tbody>
-                <DetailRow label='Listing number' value={listingRef} />
-                <DetailRow label='Property type' value={type} />
-                <DetailRow label='Listed' value={listingDate} />
-                <DetailRow label='Floor size' value={area ? `${area} m²` : null} />
-                <DetailRow label='Location' value={location} />
-                <DetailRow label='Status' value={available ? 'Available' : 'Occupied'} />
+                <DetailRow label='Listing number' value={listingRef} icon={Hash} />
+                <DetailRow label='Property type' value={type} icon={Home} />
+                <DetailRow label='Listed' value={listingDate} icon={CalendarDays} />
+                <DetailRow label='Floor size' value={area ? `${area} m²` : null} icon={Home} />
+                <DetailRow label='Land size' value={landSize ? `${landSize} m²` : null} icon={Scan} />
+                <DetailRow label='Rent' value={hasRentPrice ? `${formatKES(price)} / month` : null} icon={Tag} />
+                <DetailRow label='Purchase price' value={hasPurchasePrice ? formatKES(purchasePrice) : null} icon={Tag} />
+                <DetailRow label='Location' value={location} icon={MapPin} />
+                <DetailRow label='Status' value={available ? 'Available' : 'Occupied'} icon={CheckCircle2} />
               </tbody>
             </table>
           </section>
@@ -438,22 +499,25 @@ const PropertyDetailPage = ({ property, siteContent, onBookNow = () => {} }) => 
             <h3 className='pdp-section-title'>Property features</h3>
             <div className='pdp-features-grid'>
               <div className='pdp-features-col'>
-                {bedrooms && <FeatureRow label='Bedrooms' value={bedrooms} />}
-                {bathrooms && <FeatureRow label='Bathrooms' value={bathrooms} />}
-                {area && <FeatureRow label='Floor size' value={`${area} m²`} />}
+                {bedrooms && <FeatureRow label='Bedrooms' value={bedrooms} icon={Bed} />}
+                {bathrooms && <FeatureRow label='Bathrooms' value={bathrooms} icon={Bath} />}
+                {area && <FeatureRow label='Floor size' value={`${area} m²`} icon={Home} />}
+                {landSize && <FeatureRow label='Land size' value={`${landSize} m²`} icon={Scan} />}
+                {hasRentPrice && <FeatureRow label='Rent' value={`${formatKES(price)} / month`} icon={Tag} />}
+                {hasPurchasePrice && <FeatureRow label='Purchase price' value={formatKES(purchasePrice)} icon={Tag} />}
               </div>
               <div className='pdp-features-col'>
                 {features.pool !== undefined ? (
-                  <FeatureCheck label='Pool' available={!!features.pool} />
+                  <FeatureCheck label='Pool' available={!!features.pool} icon={Waves} />
                 ) : null}
                 {features.garden !== undefined ? (
-                  <FeatureCheck label='Garden' available={!!features.garden} />
+                  <FeatureCheck label='Garden' available={!!features.garden} icon={Trees} />
                 ) : null}
                 {features.parking !== undefined ? (
-                  <FeatureCheck label='Parking' available={!!features.parking} />
+                  <FeatureCheck label='Parking' available={!!features.parking} icon={CarFront} />
                 ) : null}
                 {features.petFriendly !== undefined ? (
-                  <FeatureCheck label='Pet friendly' available={!!features.petFriendly} />
+                  <FeatureCheck label='Pet friendly' available={!!features.petFriendly} icon={PawPrint} />
                 ) : null}
               </div>
             </div>

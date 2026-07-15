@@ -35,7 +35,7 @@ const buildPropertySlug = (property) => {
 const buildPropertyUrl = (property, listingMode = 'rent') => {
   const slug = buildPropertySlug(property);
   const modeSlug = listingMode === 'buy' ? 'for-sale' : listingMode === 'rent' ? 'for-rent' : 'rent-or-sale';
-  return `#/property/${modeSlug}/${slug}-${property.id}`;
+  return `/property/${modeSlug}/${slug}-${property.id}`;
 };
 
 const extractPropertyIdFromSlug = (slugPart) => {
@@ -56,10 +56,15 @@ const DEFAULT_SITE_CONTENT = {
 
 const VALID_PAGES = new Set(['home', 'privacy', 'terms', 'refund', 'support', 'payment-result', 'property', 'login', 'admin']);
 
-const parseHashState = () => {
-  const hash = window.location.hash || '#/home';
-  const [routePart, queryPart = ''] = hash.replace('#/', '').split('?');
-  const segments = String(routePart || 'home').trim().toLowerCase().split('/');
+const parsePathState = () => {
+  const pathname = String(window.location.pathname || '/').trim();
+  const queryPart = String(window.location.search || '').replace(/^\?/, '');
+  const normalizedPath = pathname === '/' ? '/home' : pathname;
+  const segments = normalizedPath
+    .replace(/^\//, '')
+    .split('/')
+    .filter(Boolean)
+    .map((segment) => segment.toLowerCase());
   const pageName = segments[0];
   const page = VALID_PAGES.has(pageName) ? pageName : 'home';
   const params = Object.fromEntries(new URLSearchParams(queryPart));
@@ -79,6 +84,31 @@ const parseHashState = () => {
     }
   }
   return { page, params };
+};
+
+const navigateTo = (path) => {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  if (window.location.pathname !== path) {
+    window.history.pushState({}, '', path);
+    window.dispatchEvent(new PopStateEvent('popstate'));
+  }
+};
+
+const migrateLegacyHashRoute = () => {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  const hash = String(window.location.hash || '').trim();
+  if (!hash.startsWith('#/')) {
+    return;
+  }
+
+  const route = hash.slice(1);
+  window.history.replaceState({}, '', route || '/home');
 };
 
 const getStoredToken = () => localStorage.getItem(AUTH_TOKEN_STORAGE_KEY);
@@ -108,21 +138,30 @@ const App = () => {
   const [isAdminMode, setIsAdminMode] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentAdmin, setCurrentAdmin] = useState('');
-  const [currentPage, setCurrentPage] = useState(parseHashState().page);
-  const [pageParams, setPageParams] = useState(parseHashState().params);
+  const [currentPage, setCurrentPage] = useState(parsePathState().page);
+  const [pageParams, setPageParams] = useState(parsePathState().params);
   const [checkoutProperty, setCheckoutProperty] = useState(null);
   const [reconciliationItems, setReconciliationItems] = useState([]);
   const [enquiryItems, setEnquiryItems] = useState([]);
 
   useEffect(() => {
-    const handleHashChange = () => {
-      const next = parseHashState();
+    migrateLegacyHashRoute();
+
+    const handleRouteChange = () => {
+      const next = parsePathState();
       setCurrentPage(next.page);
       setPageParams(next.params);
     };
 
-    window.addEventListener('hashchange', handleHashChange);
-    return () => window.removeEventListener('hashchange', handleHashChange);
+    // Ensure first render state matches URL after hash-route migration.
+    handleRouteChange();
+
+    window.addEventListener('popstate', handleRouteChange);
+    window.addEventListener('hashchange', handleRouteChange);
+    return () => {
+      window.removeEventListener('popstate', handleRouteChange);
+      window.removeEventListener('hashchange', handleRouteChange);
+    };
   }, []);
 
   useEffect(() => {
@@ -263,7 +302,7 @@ const App = () => {
       await loadAdmins(nextToken);
       await loadReconciliation(nextToken);
       await loadEnquiries(nextToken);
-      window.location.hash = '#/admin';
+      navigateTo('/admin');
       return { ok: true };
     } catch (error) {
       return {
@@ -290,7 +329,7 @@ const App = () => {
     setAdmins({});
     setReconciliationItems([]);
     setEnquiryItems([]);
-    window.location.hash = '#/login';
+    navigateTo('/login');
   };
 
   const handleAddAdmin = async (username, password) => {
@@ -362,14 +401,14 @@ const App = () => {
         {currentPage === 'login' && (
           <AdminLogin
             onLogin={handleAdminLogin}
-            onCancel={() => { window.location.hash = '#/home'; }}
+            onCancel={() => { navigateTo('/home'); }}
           />
         )}
 
         {currentPage === 'admin' && !isAuthenticated && (
           <AdminLogin
             onLogin={handleAdminLogin}
-            onCancel={() => { window.location.hash = '#/home'; }}
+            onCancel={() => { navigateTo('/home'); }}
           />
         )}
 
@@ -392,7 +431,7 @@ const App = () => {
             enquiryItems={enquiryItems}
             onRefreshEnquiries={handleRefreshEnquiries}
             onUpdateEnquiryStatus={handleUpdateEnquiryStatus}
-            onExit={() => { window.location.hash = '#/home'; }}
+            onExit={() => { navigateTo('/home'); }}
             onLogout={handleAdminLogout}
           />
         )}
@@ -465,6 +504,7 @@ const App = () => {
               <PropertyDetailPage
                 property={found || null}
                 siteContent={siteContent}
+                listingMode={pageParams.mode}
                 onBookNow={(property) => {
                   trackEvent('begin_checkout', {
                     property_id: property.id,

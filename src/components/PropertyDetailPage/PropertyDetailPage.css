@@ -240,9 +240,16 @@
 
 .pdp-price-row {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 1rem;
   flex-wrap: wrap;
+}
+
+.pdp-price-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.3rem;
 }
 
 .pdp-price {
@@ -251,6 +258,11 @@
   font-weight: 800;
   color: #111827;
   line-height: 1.1;
+}
+
+.pdp-price--secondary {
+  font-size: 1.45rem;
+  font-weight: 700;
 }
 
 .pdp-price-period {
@@ -373,6 +385,24 @@
   color: #6b7280;
 }
 
+.pdp-details-label-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.pdp-details-icon {
+  color: #64748b;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.pdp-details-value-cell {
+  text-align: right;
+}
+
 .pdp-details-table td strong {
   color: #111827;
   font-weight: 600;
@@ -397,11 +427,19 @@
 
 .pdp-feature-row {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 0.4rem;
   padding: 0.45rem 0;
   border-bottom: 1px solid #f3f4f6;
   font-size: 0.88rem;
+}
+
+.pdp-feature-icon {
+  color: #64748b;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
 .pdp-feature-label {
@@ -429,6 +467,15 @@
   border-bottom: 1px solid #f3f4f6;
   font-size: 0.88rem;
   color: #374151;
+}
+
+.pdp-feature-check span {
+  flex: 1;
+}
+
+.pdp-feature-checkmark {
+  color: #64748b;
+  flex-shrink: 0;
 }
 
 .pdp-feature-check svg {

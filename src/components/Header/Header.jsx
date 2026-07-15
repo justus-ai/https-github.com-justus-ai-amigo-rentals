@@ -28,8 +28,8 @@ const Header = ({
       </div>
       <div className='item admin-item'>
         {isAuthenticated
-          ? <a href='#/admin' className='admin-header-link'>Admin Panel</a>
-          : <a href='#/login' className='admin-header-link'>Admin Login</a>
+          ? <a href='/admin' className='admin-header-link'>Admin Panel</a>
+          : <a href='/login' className='admin-header-link'>Admin Login</a>
         }
       </div>
     </header>

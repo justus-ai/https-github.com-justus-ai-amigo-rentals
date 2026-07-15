@@ -14,30 +14,29 @@ const LISTING_TABS = [
     { value: LISTING_MODE.BUY, label: 'Buy' },
 ];
 
-const hasKeyword = (value, pattern) => pattern.test(String(value || '').toLowerCase());
+const getPriceForMode = (property, mode) => {
+    if (mode === LISTING_MODE.BUY) {
+        return toPositiveNumber(property?.purchasePrice);
+    }
+
+    return toPositiveNumber(property?.price);
+};
 
 const inferListingModes = (property) => {
-    const haystack = [property?.title, property?.description].join(' ').toLowerCase();
-    const salePattern = /\b(for sale|sale|sell|selling|buy|purchase|own)\b/;
-    const rentPattern = /\b(for rent|to let|rent|rental|lease|letting|let)\b/;
-    const mixedPattern = /\b(rent(?:al)?\s*(?:\/|and|&|or)\s*sale|sale\s*(?:\/|and|&|or)\s*rent(?:al)?)\b/;
-    const hasSale = hasKeyword(haystack, salePattern);
-    const hasRent = hasKeyword(haystack, rentPattern);
+    const hasBuyPrice = toPositiveNumber(property?.purchasePrice);
+    const hasRentPrice = toPositiveNumber(property?.price);
+    const modes = [];
 
-    if (hasKeyword(haystack, mixedPattern)) {
-        return [LISTING_MODE.BUY, LISTING_MODE.RENT];
+    if (hasRentPrice) {
+        modes.push(LISTING_MODE.RENT);
     }
 
-    if (hasSale && hasRent) {
-        return [LISTING_MODE.BUY, LISTING_MODE.RENT];
+    if (hasBuyPrice) {
+        modes.push(LISTING_MODE.BUY);
     }
 
-    if (hasSale) {
-        return [LISTING_MODE.BUY];
-    }
-
-    if (hasRent) {
-        return [LISTING_MODE.RENT];
+    if (modes.length) {
+        return modes;
     }
 
     // Default to rent so older listings without explicit wording remain visible.
@@ -62,7 +61,7 @@ const formatBedroomOption = (value) => {
     return `${value}+`;
 };
 
-const PropertyList = ({ properties, onBookProperty = () => {}, buildPropertyUrl = (p, mode) => `#/property/${mode === 'buy' ? 'for-sale' : 'for-rent'}/${p.id}` }) => {
+const PropertyList = ({ properties, onBookProperty = () => {}, buildPropertyUrl = (p, mode) => `/property/${mode === 'buy' ? 'for-sale' : 'for-rent'}/${p.id}` }) => {
     const [activeProperty, setActiveProperty] = useState(null);
     const [listingMode, setListingMode] = useState(LISTING_MODE.RENT);
     const [searchTerm, setSearchTerm] = useState('');
@@ -138,14 +137,14 @@ const PropertyList = ({ properties, onBookProperty = () => {}, buildPropertyUrl 
     const priceOptions = useMemo(() => {
         const values = new Set();
         modeMatchedProperties.forEach((property) => {
-            const value = toPositiveNumber(property.price);
+            const value = getPriceForMode(property, listingMode);
             if (value) {
                 values.add(value);
             }
         });
 
         return Array.from(values).sort((a, b) => a - b);
-    }, [modeMatchedProperties]);
+    }, [modeMatchedProperties, listingMode]);
 
     const filteredProperties = useMemo(() => {
         const query = searchTerm.trim().toLowerCase();
@@ -157,7 +156,7 @@ const PropertyList = ({ properties, onBookProperty = () => {}, buildPropertyUrl 
         return modeMatchedProperties.filter((property) => {
             const type = normalizeLabel(property.type, 'Unspecified');
             const location = normalizeLabel(property.location, 'Unknown');
-            const price = toPositiveNumber(property.price) || 0;
+            const price = getPriceForMode(property, listingMode) || 0;
             const bedrooms = toPositiveNumber(property.bedrooms) || 0;
             const bathrooms = toPositiveNumber(property.bathrooms) || 0;
 
@@ -203,6 +202,7 @@ const PropertyList = ({ properties, onBookProperty = () => {}, buildPropertyUrl 
         maxPrice,
         minBedrooms,
         minBathrooms,
+        listingMode,
     ]);
 
     const groupedFilteredProperties = useMemo(() => {
