@@ -48,6 +48,34 @@ const normalizeLabel = (value, fallback = 'N/A') => {
     return trimmed || fallback;
 };
 
+const normalizeOptionKey = (value) => String(value || '').trim().toLowerCase();
+
+const toTitleCase = (value) => String(value || '')
+    .toLowerCase()
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+
+const hasUppercase = (value) => /[A-Z]/.test(String(value || ''));
+
+const buildNormalizedOptions = (properties, getter, fallback, formatLabel = (label) => label) => {
+    const optionsMap = new Map();
+
+    properties.forEach((property) => {
+        const rawLabel = normalizeLabel(getter(property), fallback);
+        const label = formatLabel(rawLabel);
+        const key = normalizeOptionKey(label);
+        const existing = optionsMap.get(key);
+
+        // Prefer a label variant that already has intended capitalization.
+        if (!existing || (!hasUppercase(existing) && hasUppercase(label))) {
+            optionsMap.set(key, label);
+        }
+    });
+
+    return Array.from(optionsMap.entries())
+        .map(([value, label]) => ({ value, label }))
+        .sort((left, right) => left.label.localeCompare(right.label, undefined, { sensitivity: 'base' }));
+};
+
 const toPositiveNumber = (value) => {
     const parsed = Number(value);
     return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
@@ -105,15 +133,16 @@ const PropertyList = ({ properties, onBookProperty = () => {}, buildPropertyUrl 
     );
 
     const typeOptions = useMemo(() => {
-        const values = new Set();
-        modeMatchedProperties.forEach((property) => values.add(normalizeLabel(property.type, 'Unspecified')));
-        return Array.from(values).sort((a, b) => a.localeCompare(b));
+        return buildNormalizedOptions(modeMatchedProperties, (property) => property.type, 'Unspecified');
     }, [modeMatchedProperties]);
 
     const locationOptions = useMemo(() => {
-        const values = new Set();
-        modeMatchedProperties.forEach((property) => values.add(normalizeLabel(property.location, 'Unknown')));
-        return Array.from(values).sort((a, b) => a.localeCompare(b));
+        return buildNormalizedOptions(
+            modeMatchedProperties,
+            (property) => property.location,
+            'Unknown',
+            (label) => toTitleCase(label)
+        );
     }, [modeMatchedProperties]);
 
     const bedroomOptions = useMemo(() => {
@@ -204,6 +233,8 @@ const PropertyList = ({ properties, onBookProperty = () => {}, buildPropertyUrl 
         return modeMatchedProperties.filter((property) => {
             const type = normalizeLabel(property.type, 'Unspecified');
             const location = normalizeLabel(property.location, 'Unknown');
+            const typeKey = normalizeOptionKey(type);
+            const locationKey = normalizeOptionKey(location);
             const rentPrice = toPositiveNumber(property.price) || 0;
             const purchasePrice = toPositiveNumber(property.purchasePrice) || 0;
             const floorSize = toPositiveNumber(property.area) || 0;
@@ -211,11 +242,11 @@ const PropertyList = ({ properties, onBookProperty = () => {}, buildPropertyUrl 
             const bedrooms = toPositiveNumber(property.bedrooms) || 0;
             const bathrooms = toPositiveNumber(property.bathrooms) || 0;
 
-            if (selectedType !== 'all' && type !== selectedType) {
+            if (selectedType !== 'all' && typeKey !== selectedType) {
                 return false;
             }
 
-            if (selectedLocation !== 'all' && location !== selectedLocation) {
+            if (selectedLocation !== 'all' && locationKey !== selectedLocation) {
                 return false;
             }
 
@@ -301,13 +332,13 @@ const PropertyList = ({ properties, onBookProperty = () => {}, buildPropertyUrl 
     }, [filteredProperties]);
 
     useEffect(() => {
-        if (!typeOptions.includes(selectedType)) {
+        if (!typeOptions.some((option) => option.value === selectedType)) {
             setSelectedType('all');
         }
     }, [typeOptions, selectedType]);
 
     useEffect(() => {
-        if (!locationOptions.includes(selectedLocation)) {
+        if (!locationOptions.some((option) => option.value === selectedLocation)) {
             setSelectedLocation('all');
         }
     }, [locationOptions, selectedLocation]);
@@ -336,8 +367,8 @@ const PropertyList = ({ properties, onBookProperty = () => {}, buildPropertyUrl 
                 Property Type
                 <select value={selectedType} onChange={(event) => setSelectedType(event.target.value)}>
                     <option value='all'>All Types</option>
-                    {typeOptions.map((type) => (
-                        <option key={type} value={type}>{type}</option>
+                    {typeOptions.map((typeOption) => (
+                        <option key={typeOption.value} value={typeOption.value}>{typeOption.label}</option>
                     ))}
                 </select>
             </label>
@@ -346,8 +377,8 @@ const PropertyList = ({ properties, onBookProperty = () => {}, buildPropertyUrl 
                 Location
                 <select value={selectedLocation} onChange={(event) => setSelectedLocation(event.target.value)}>
                     <option value='all'>All Locations</option>
-                    {locationOptions.map((location) => (
-                        <option key={location} value={location}>{location}</option>
+                    {locationOptions.map((locationOption) => (
+                        <option key={locationOption.value} value={locationOption.value}>{locationOption.label}</option>
                     ))}
                 </select>
             </label>
