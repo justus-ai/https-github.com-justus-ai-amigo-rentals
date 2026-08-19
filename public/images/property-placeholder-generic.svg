@@ -13,5 +13,4 @@
     <circle cx="500" cy="300" r="36"/>
     <path d="M420 470 L540 360 L630 440 L730 340 L820 470"/>
   </g>
-  <text x="600" y="610" fill="#ffffff" font-size="44" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif">No image for this property yet</text>
 </svg>

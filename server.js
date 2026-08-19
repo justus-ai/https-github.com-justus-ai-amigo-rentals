@@ -19,7 +19,25 @@ const corsOrigins = (process.env.CORS_ORIGINS || '')
   .map((origin) => origin.trim())
   .filter(Boolean);
 
-app.use(helmet());
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'", "'unsafe-inline'", 'https://js.stripe.com', 'https://m.stripe.com'],
+        scriptSrcElem: ["'self'", "'unsafe-inline'", 'https://js.stripe.com', 'https://m.stripe.com'],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        imgSrc: ["'self'", 'data:', 'blob:', 'https://js.stripe.com', 'https://*.amazonaws.com'],
+        connectSrc: ["'self'", 'https://api.stripe.com', 'https://m.stripe.com', 'https://q.stripe.com', 'https://*.amazonaws.com'],
+        frameSrc: ["'self'", 'https://js.stripe.com', 'https://hooks.stripe.com'],
+        fontSrc: ["'self'", 'data:'],
+        objectSrc: ["'none'"],
+        upgradeInsecureRequests: [],
+      },
+    },
+    crossOriginEmbedderPolicy: false,
+  })
+);
 app.use('/api/payments/stripe/webhook', express.raw({ type: 'application/json' }));
 app.use(express.json({ limit: '50mb' }));
 app.use(
@@ -93,6 +111,8 @@ db.exec(`
     bedrooms INTEGER NOT NULL DEFAULT 0,
     bathrooms INTEGER NOT NULL DEFAULT 0,
     area REAL NOT NULL DEFAULT 0,
+    land_size REAL,
+    purchase_price REAL,
     image TEXT,
     images TEXT,
     description TEXT,
@@ -156,6 +176,11 @@ if (!propertyColumns.some((column) => column.name === 'lat')) {
 }
 if (!propertyColumns.some((column) => column.name === 'lng')) {
   db.prepare('ALTER TABLE properties ADD COLUMN lng REAL').run();
+if (!propertyColumns.some((column) => column.name === 'land_size')) {
+  db.prepare('ALTER TABLE properties ADD COLUMN land_size REAL').run();
+}
+if (!propertyColumns.some((column) => column.name === 'purchase_price')) {
+  db.prepare('ALTER TABLE properties ADD COLUMN purchase_price REAL').run();
 }
 
 const defaultSiteContent = {
@@ -211,6 +236,8 @@ if (propertyCount === 0) {
   const insertProperty = db.prepare(`
     INSERT INTO properties (type, title, location, lat, lng, price, bedrooms, bathrooms, area, image, images, description, available, created_at, updated_at)
     VALUES (@type, @title, @location, @lat, @lng, @price, @bedrooms, @bathrooms, @area, @image, @images, @description, @available, @created_at, @updated_at)
+    INSERT INTO properties (type, title, location, price, bedrooms, bathrooms, area, land_size, purchase_price, image, images, description, available, created_at, updated_at)
+    VALUES (@type, @title, @location, @price, @bedrooms, @bathrooms, @area, @land_size, @purchase_price, @image, @images, @description, @available, @created_at, @updated_at)
   `);
 
   const now = Date.now();
@@ -361,6 +388,11 @@ const sanitizeFilename = (value) => String(value || '').replace(/[^a-zA-Z0-9._-]
 const asNumber = (value, fallback = 0) => {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : fallback;
+};
+
+const asOptionalPositiveNumber = (value) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
 };
 
 const isIsoDate = (value) => /^\d{4}-\d{2}-\d{2}$/.test(String(value || ''));
@@ -658,6 +690,8 @@ const normalizePropertyInput = (input = {}) => {
     bedrooms: asNumber(input.bedrooms),
     bathrooms: asNumber(input.bathrooms),
     area: asNumber(input.area),
+    land_size: asOptionalPositiveNumber(input.landSize ?? input.land_size),
+    purchase_price: asOptionalPositiveNumber(input.purchasePrice ?? input.purchase_price),
     image: normalizedImages[0] || '',
     images: JSON.stringify(normalizedImages),
     description: String(input.description || '').trim(),
@@ -682,6 +716,8 @@ const formatProperty = (row) => {
 
   return {
     ...row,
+    landSize: asOptionalPositiveNumber(row.land_size),
+    purchasePrice: asOptionalPositiveNumber(row.purchase_price),
     image: parsedImages[0] || '',
     images: parsedImages,
     available: Boolean(row.available),
@@ -758,6 +794,7 @@ app.get('/ready', (_req, res) => {
 app.get('/api/properties', (_req, res) => {
   const rows = db
     .prepare('SELECT id, type, title, location, lat, lng, price, bedrooms, bathrooms, area, image, images, description, available FROM properties ORDER BY id DESC')
+    .prepare('SELECT id, type, title, location, price, bedrooms, bathrooms, area, land_size, purchase_price, image, images, description, available FROM properties ORDER BY id DESC')
     .all();
   res.json({ properties: rows.map(formatProperty) });
 });
@@ -829,12 +866,15 @@ app.post('/api/properties', requireAuth, (req, res) => {
       `
         INSERT INTO properties (type, title, location, lat, lng, price, bedrooms, bathrooms, area, image, images, description, available, created_at, updated_at)
         VALUES (@type, @title, @location, @lat, @lng, @price, @bedrooms, @bathrooms, @area, @image, @images, @description, @available, @created_at, @updated_at)
+        INSERT INTO properties (type, title, location, price, bedrooms, bathrooms, area, land_size, purchase_price, image, images, description, available, created_at, updated_at)
+        VALUES (@type, @title, @location, @price, @bedrooms, @bathrooms, @area, @land_size, @purchase_price, @image, @images, @description, @available, @created_at, @updated_at)
       `
     )
     .run({ ...property, created_at: now, updated_at: now });
 
   const created = db
     .prepare('SELECT id, type, title, location, lat, lng, price, bedrooms, bathrooms, area, image, images, description, available FROM properties WHERE id = ?')
+    .prepare('SELECT id, type, title, location, price, bedrooms, bathrooms, area, land_size, purchase_price, image, images, description, available FROM properties WHERE id = ?')
     .get(insertResult.lastInsertRowid);
   res.status(201).json({ property: formatProperty(created) });
 });
@@ -860,12 +900,15 @@ app.put('/api/properties/:id', requireAuth, (req, res) => {
       UPDATE properties
       SET type=@type, title=@title, location=@location, lat=@lat, lng=@lng, price=@price, bedrooms=@bedrooms, bathrooms=@bathrooms,
           area=@area, image=@image, images=@images, description=@description, available=@available, updated_at=@updated_at
+      SET type=@type, title=@title, location=@location, price=@price, bedrooms=@bedrooms, bathrooms=@bathrooms,
+          area=@area, land_size=@land_size, purchase_price=@purchase_price, image=@image, images=@images, description=@description, available=@available, updated_at=@updated_at
       WHERE id=@id
     `
   ).run({ ...property, updated_at: Date.now(), id: propertyId });
 
   const updated = db
     .prepare('SELECT id, type, title, location, lat, lng, price, bedrooms, bathrooms, area, image, images, description, available FROM properties WHERE id = ?')
+    .prepare('SELECT id, type, title, location, price, bedrooms, bathrooms, area, land_size, purchase_price, image, images, description, available FROM properties WHERE id = ?')
     .get(propertyId);
   res.json({ property: formatProperty(updated) });
 });
@@ -1310,8 +1353,8 @@ app.post('/api/payments/stripe/checkout-session', async (req, res) => {
       metadata: {
         bookingId: String(booking.id),
       },
-      success_url: `${appBaseUrl}/#/payment-result?status=success&bookingId=${booking.id}&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${appBaseUrl}/#/payment-result?status=cancel&bookingId=${booking.id}`,
+      success_url: `${appBaseUrl}/payment-result?status=success&bookingId=${booking.id}&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${appBaseUrl}/payment-result?status=cancel&bookingId=${booking.id}`,
     });
 
     const now = Date.now();

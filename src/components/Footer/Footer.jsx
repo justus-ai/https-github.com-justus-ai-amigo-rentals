@@ -26,10 +26,10 @@ const Footer = () => {
           <p>Find your next home with confidence and comfort.</p>
           <p>Open 24 Hours</p>
           <nav className='footer-links' aria-label='Legal and support links'>
-            <a href='#/terms'>Terms</a>
-            <a href='#/privacy'>Privacy</a>
-            <a href='#/refund'>Refunds</a>
-            <a href='#/support'>Support</a>
+            <a href='/terms'>Terms</a>
+            <a href='/privacy'>Privacy</a>
+            <a href='/refund'>Refunds</a>
+            <a href='/support'>Support</a>
           </nav>
 
           <div className='socials' aria-label='Social media links'>

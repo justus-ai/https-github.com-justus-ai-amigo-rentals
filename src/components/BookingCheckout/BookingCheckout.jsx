@@ -333,11 +333,12 @@ const BookingCheckout = ({ property, onClose }) => {
   };
 
   return (
-    <section className='booking-checkout' aria-labelledby='booking-checkout-title'>
-      <div className='booking-checkout-head'>
-        <h2 id='booking-checkout-title'>Book This Property</h2>
-        <button type='button' className='secondary' onClick={onClose}>Close</button>
-      </div>
+    <div className='booking-backdrop' role='presentation' onClick={onClose}>
+      <section className='booking-checkout' role='dialog' aria-modal='true' aria-labelledby='booking-checkout-title' onClick={(e) => e.stopPropagation()}>
+        <div className='booking-checkout-head'>
+          <h2 id='booking-checkout-title'>Book This Property</h2>
+          <button type='button' className='secondary' onClick={onClose} aria-label='Close booking modal'>Close</button>
+        </div>
 
       <p className='booking-subtitle'>
         {property?.title} in {property?.location} - {formatKES(quote.nightlyRate)} per night
@@ -483,7 +484,8 @@ const BookingCheckout = ({ property, onClose }) => {
           <button type='submit' disabled={isLoading}>Confirm and Pay</button>
         </div>
       </form>
-    </section>
+      </section>
+    </div>
   );
 };
 

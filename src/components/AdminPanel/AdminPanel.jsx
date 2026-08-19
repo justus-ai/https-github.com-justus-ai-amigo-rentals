@@ -13,9 +13,11 @@ const EMPTY_PROPERTY = {
   lat: '',
   lng: '',
   price: '',
+  purchasePrice: '',
   bedrooms: '',
   bathrooms: '',
   area: '',
+  landSize: '',
   images: [],
   description: '',
   available: true,
@@ -389,9 +391,11 @@ const AdminPanel = ({
       lat: property.lat ?? '',
       lng: property.lng ?? '',
       price: property.price ?? '',
+      purchasePrice: property.purchasePrice ?? '',
       bedrooms: property.bedrooms ?? '',
       bathrooms: property.bathrooms ?? '',
       area: property.area ?? '',
+      landSize: property.landSize ?? '',
       images: limitedImages,
       description: property.description ?? '',
       available: property.available ?? true,
@@ -421,9 +425,11 @@ const AdminPanel = ({
         images,
         image: images[0] || '',
         price: normalizeNumber(form.price),
+        purchasePrice: normalizeNumber(form.purchasePrice),
         bedrooms: normalizeNumber(form.bedrooms),
         bathrooms: normalizeNumber(form.bathrooms),
         area: normalizeNumber(form.area),
+        landSize: normalizeNumber(form.landSize),
       },
       sanitizedImages: images,
       removedEmbeddedMediaCount,
@@ -731,6 +737,10 @@ const AdminPanel = ({
                 <input type='number' value={form.price} onChange={(event) => handleChange('price', event.target.value)} />
               </label>
               <label>
+                Purchase Price (KES)
+                <input type='number' value={form.purchasePrice} onChange={(event) => handleChange('purchasePrice', event.target.value)} />
+              </label>
+              <label>
                 Bedrooms
                 <input type='number' value={form.bedrooms} onChange={(event) => handleChange('bedrooms', event.target.value)} />
               </label>
@@ -741,6 +751,10 @@ const AdminPanel = ({
               <label>
                 Floor Size (m²)
                 <input type='number' value={form.area} onChange={(event) => handleChange('area', event.target.value)} />
+              </label>
+              <label>
+                Land Size (m²)
+                <input type='number' value={form.landSize} onChange={(event) => handleChange('landSize', event.target.value)} />
               </label>
               <label>
                 Images & Motion Photos

@@ -27,7 +27,7 @@ const CookieBanner = () => {
     <aside className='cookie-banner' aria-live='polite'>
       <p>
         We use cookies for core site performance and optional analytics. Read our{' '}
-        <a href='#/privacy'>Privacy Policy</a>.
+        <a href='/privacy'>Privacy Policy</a>.
       </p>
       <div className='cookie-actions'>
         <button type='button' onClick={() => updateConsent('accepted')}>Accept</button>
