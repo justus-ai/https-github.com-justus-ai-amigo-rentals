@@ -97,3 +97,39 @@
   font-weight: 700;
   cursor: pointer;
 }
+
+.property-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  margin-top: 0.6rem;
+}
+
+.property-actions .book-now-btn {
+  margin-top: 0;
+}
+
+.whatsapp-location-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 0.8rem;
+  border-radius: 0.45rem;
+  background: #25d366;
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.875rem;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.whatsapp-location-btn:hover {
+  background: #1ebe5a;
+}
+
+.whatsapp-location-btn svg {
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
+}

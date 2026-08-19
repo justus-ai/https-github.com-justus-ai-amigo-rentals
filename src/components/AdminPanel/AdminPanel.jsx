@@ -10,6 +10,8 @@ const EMPTY_PROPERTY = {
   type: '',
   title: '',
   location: '',
+  lat: '',
+  lng: '',
   price: '',
   bedrooms: '',
   bathrooms: '',
@@ -384,6 +386,8 @@ const AdminPanel = ({
       type: normalizePropertyType(property.type) || '',
       title: property.title ?? '',
       location: property.location ?? '',
+      lat: property.lat ?? '',
+      lng: property.lng ?? '',
       price: property.price ?? '',
       bedrooms: property.bedrooms ?? '',
       bathrooms: property.bathrooms ?? '',
@@ -713,6 +717,14 @@ const AdminPanel = ({
               <label>
                 Location
                 <input value={form.location} onChange={(event) => handleChange('location', event.target.value)} />
+              </label>
+              <label>
+                Latitude
+                <input type='number' step='any' placeholder='e.g. -1.2864' value={form.lat} onChange={(event) => handleChange('lat', event.target.value)} />
+              </label>
+              <label>
+                Longitude
+                <input type='number' step='any' placeholder='e.g. 36.8172' value={form.lng} onChange={(event) => handleChange('lng', event.target.value)} />
               </label>
               <label>
                 Rent Price (KES)
