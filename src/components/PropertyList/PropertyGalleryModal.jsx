@@ -9,10 +9,40 @@ import './PropertyGalleryModal.css';
 
 const SWIPE_THRESHOLD = 45;
 
+const buildAbsolutePropertyUrl = (property, listingMode, buildPropertyUrl) => {
+  if (!buildPropertyUrl || typeof window === 'undefined') {
+    return undefined;
+  }
+
+  return new URL(buildPropertyUrl(property, listingMode), window.location.origin).toString();
+};
+
+const toPositiveNumber = (value) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+};
+
+const getPropertyPriceItems = (property) => {
+  const rent = toPositiveNumber(property?.price);
+  const purchase = toPositiveNumber(property?.purchasePrice);
+  const priceItems = [];
+
+  if (rent) {
+    priceItems.push({ label: 'Rent', text: `Rent: ${formatKES(rent)}` });
+  }
+
+  if (purchase) {
+    priceItems.push({ label: 'Purchase', text: `Purchase: ${formatKES(purchase)}` });
+  }
+
+  return priceItems.length ? priceItems : [{ label: 'Price', text: 'Contact for price' }];
+};
+
 /* ── Share modal ─────────────────────────────────────────── */
 const ShareModal = ({ property, onClose, url: propUrl }) => {
   const [copied, setCopied] = useState(false);
   const url = propUrl || window.location.href;
+  const priceItems = getPropertyPriceItems(property);
 
   const copyLink = async () => {
     try {
@@ -39,7 +69,11 @@ const ShareModal = ({ property, onClose, url: propUrl }) => {
           <div className='pgm-share-preview'>
             <img src={primaryImage} alt={property.title} />
             <div>
-              <strong>{formatKES(property.price)}</strong>
+              <div className='pgm-share-price-stack'>
+                {priceItems.map((item) => (
+                  <strong key={item.label}>{item.text}</strong>
+                ))}
+              </div>
               <span>{property.bedrooms ? `${property.bedrooms} Bedroom ` : ''}{property.type}{property.location ? ` in ${property.location}` : ''}</span>
             </div>
           </div>
@@ -248,6 +282,7 @@ const PropertyGalleryModal = ({ property, onClose, buildPropertyUrl, listingMode
     propType,
     property.location ? `in ${property.location}` : '',
   ].filter(Boolean).join(' ');
+  const priceItems = getPropertyPriceItems(property);
 
   return (
     <div className='pgm-backdrop' role='dialog' aria-modal='true' aria-label={`Gallery for ${property.title}`}>
@@ -259,7 +294,7 @@ const PropertyGalleryModal = ({ property, onClose, buildPropertyUrl, listingMode
             <ArrowLeft size={20} />
           </button>
           <div className='pgm-title-block'>
-            <span className='pgm-header-price'>{formatKES(property.price)}</span>
+            <span className='pgm-header-price'>{priceItems.map((item) => item.text).join(' · ')}</span>
             <span className='pgm-header-subtitle'>{subtitle}</span>
           </div>
         </div>
@@ -385,7 +420,7 @@ const PropertyGalleryModal = ({ property, onClose, buildPropertyUrl, listingMode
       )}
 
       {/* ── Overlay modals ── */}
-      {showShare && <ShareModal property={property} onClose={() => setShowShare(false)} url={buildPropertyUrl ? window.location.origin + window.location.pathname + buildPropertyUrl(property, listingMode) : undefined} />}
+      {showShare && <ShareModal property={property} onClose={() => setShowShare(false)} url={buildAbsolutePropertyUrl(property, listingMode, buildPropertyUrl)} />}
       {showContact && <ContactAgentModal property={property} onClose={() => setShowContact(false)} />}
     </div>
   );

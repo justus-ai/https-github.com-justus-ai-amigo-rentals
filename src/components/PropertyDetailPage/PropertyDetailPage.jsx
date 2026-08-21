@@ -254,7 +254,7 @@ const DetailRow = ({ label, value, icon: Icon }) =>
   ) : null;
 
 /* ── Main component ────────────────────────────────────────────── */
-const PropertyDetailPage = ({ property, siteContent, onBookNow = () => {}, listingMode = 'rent' }) => {
+const PropertyDetailPage = ({ property, siteContent, onBookNow = () => {}, listingMode = 'rent', isLoading = false }) => {
   const [showGallery, setShowGallery] = useState(false);
   const [showShare, setShowShare] = useState(false);
 
@@ -278,8 +278,8 @@ const PropertyDetailPage = ({ property, siteContent, onBookNow = () => {}, listi
   if (!property) {
     return (
       <div className='pdp-not-found'>
-        <h2>Property not found</h2>
-        <a href='/home' className='pdp-back-link'>← Back to listings</a>
+        <h2>{isLoading ? 'Property loading...' : 'Property not found'}</h2>
+        {!isLoading && <a href='/home' className='pdp-back-link'>← Back to listings</a>}
       </div>
     );
   }

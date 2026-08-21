@@ -132,6 +132,7 @@ const getAuthUsername = (payload = {}) =>
 
 const App = () => {
   const [properties, setProperties] = useState(defaultProperties);
+  const [isPublicDataLoading, setIsPublicDataLoading] = useState(true);
   const [siteContent, setSiteContent] = useState(DEFAULT_SITE_CONTENT);
   const [admins, setAdmins] = useState({});
   const [authToken, setAuthToken] = useState(getStoredToken);
@@ -169,6 +170,8 @@ const App = () => {
   }, [currentPage]);
 
   const loadPublicData = async () => {
+    setIsPublicDataLoading(true);
+
     try {
       const [propertiesResponse, siteContentResponse] = await Promise.all([
         api.getProperties(),
@@ -182,6 +185,8 @@ const App = () => {
     } catch {
       setProperties(defaultProperties);
       setSiteContent(DEFAULT_SITE_CONTENT);
+    } finally {
+      setIsPublicDataLoading(false);
     }
   };
 
@@ -505,6 +510,7 @@ const App = () => {
                 property={found || null}
                 siteContent={siteContent}
                 listingMode={pageParams.mode}
+                isLoading={isPublicDataLoading}
                 onBookNow={(property) => {
                   trackEvent('begin_checkout', {
                     property_id: property.id,

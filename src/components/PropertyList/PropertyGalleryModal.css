@@ -47,6 +47,8 @@
   font-weight: 700;
   color: #f1f5f9;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .pgm-header-subtitle {
@@ -306,6 +308,12 @@
   display: flex;
   flex-direction: column;
   gap: 0.15rem;
+}
+
+.pgm-share-price-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.12rem;
 }
 
 .pgm-share-preview strong {

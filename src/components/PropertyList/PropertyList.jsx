@@ -89,6 +89,8 @@ const formatBedroomOption = (value) => {
     return `${value}+`;
 };
 
+const hasOptions = (options) => Array.isArray(options) && options.length > 0;
+
 const PropertyList = ({ properties, onBookProperty = () => {}, buildPropertyUrl = (p, mode) => `/property/${mode === 'buy' ? 'for-sale' : 'for-rent'}/${p.id}` }) => {
     const [activeProperty, setActiveProperty] = useState(null);
     const [listingMode, setListingMode] = useState(LISTING_MODE.RENT);
@@ -219,16 +221,22 @@ const PropertyList = ({ properties, onBookProperty = () => {}, buildPropertyUrl 
 
     const filteredProperties = useMemo(() => {
         const query = searchTerm.trim().toLowerCase();
-        const minRent = toPositiveNumber(minRentPrice);
-        const maxRent = toPositiveNumber(maxRentPrice);
-        const minPurchase = toPositiveNumber(minPurchasePrice);
-        const maxPurchase = toPositiveNumber(maxPurchasePrice);
-        const minFloor = toPositiveNumber(minFloorSize);
-        const maxFloor = toPositiveNumber(maxFloorSize);
-        const minLand = toPositiveNumber(minLandSize);
-        const maxLand = toPositiveNumber(maxLandSize);
-        const minBeds = toPositiveNumber(minBedrooms);
-        const minBaths = toPositiveNumber(minBathrooms);
+        const canFilterRentPrice = listingMode === LISTING_MODE.RENT && hasOptions(rentPriceOptions);
+        const canFilterPurchasePrice = listingMode === LISTING_MODE.BUY && hasOptions(purchasePriceOptions);
+        const canFilterFloorSize = hasOptions(floorSizeOptions);
+        const canFilterLandSize = hasOptions(landSizeOptions);
+        const canFilterBedrooms = hasOptions(bedroomOptions);
+        const canFilterBathrooms = hasOptions(bathroomOptions);
+        const minRent = canFilterRentPrice ? toPositiveNumber(minRentPrice) : null;
+        const maxRent = canFilterRentPrice ? toPositiveNumber(maxRentPrice) : null;
+        const minPurchase = canFilterPurchasePrice ? toPositiveNumber(minPurchasePrice) : null;
+        const maxPurchase = canFilterPurchasePrice ? toPositiveNumber(maxPurchasePrice) : null;
+        const minFloor = canFilterFloorSize ? toPositiveNumber(minFloorSize) : null;
+        const maxFloor = canFilterFloorSize ? toPositiveNumber(maxFloorSize) : null;
+        const minLand = canFilterLandSize ? toPositiveNumber(minLandSize) : null;
+        const maxLand = canFilterLandSize ? toPositiveNumber(maxLandSize) : null;
+        const minBeds = canFilterBedrooms ? toPositiveNumber(minBedrooms) : null;
+        const minBaths = canFilterBathrooms ? toPositiveNumber(minBathrooms) : null;
 
         return modeMatchedProperties.filter((property) => {
             const type = normalizeLabel(property.type, 'Unspecified');
@@ -314,6 +322,13 @@ const PropertyList = ({ properties, onBookProperty = () => {}, buildPropertyUrl 
         maxLandSize,
         minBedrooms,
         minBathrooms,
+        listingMode,
+        rentPriceOptions,
+        purchasePriceOptions,
+        floorSizeOptions,
+        landSizeOptions,
+        bedroomOptions,
+        bathroomOptions,
     ]);
 
     const groupedFilteredProperties = useMemo(() => {
@@ -343,6 +358,38 @@ const PropertyList = ({ properties, onBookProperty = () => {}, buildPropertyUrl 
         }
     }, [locationOptions, selectedLocation]);
 
+    useEffect(() => {
+        if (listingMode === LISTING_MODE.RENT) {
+            setMinPurchasePrice('');
+            setMaxPurchasePrice('');
+        }
+
+        if (listingMode === LISTING_MODE.BUY) {
+            setMinRentPrice('');
+            setMaxRentPrice('');
+        }
+    }, [listingMode]);
+
+    useEffect(() => {
+        if (!hasOptions(floorSizeOptions)) {
+            setMinFloorSize('');
+            setMaxFloorSize('');
+        }
+
+        if (!hasOptions(landSizeOptions)) {
+            setMinLandSize('');
+            setMaxLandSize('');
+        }
+
+        if (!hasOptions(bedroomOptions)) {
+            setMinBedrooms('');
+        }
+
+        if (!hasOptions(bathroomOptions)) {
+            setMinBathrooms('');
+        }
+    }, [floorSizeOptions, landSizeOptions, bedroomOptions, bathroomOptions]);
+
     const clearFilters = () => {
         setSearchTerm('');
         setSelectedType('all');
@@ -361,127 +408,120 @@ const PropertyList = ({ properties, onBookProperty = () => {}, buildPropertyUrl 
 
     const filterPanelClassName = `property-filter-panel ${isFilterPanelOpen ? 'open' : ''}`;
 
+    const activeFilterControls = [
+        {
+            key: 'type',
+            label: 'Property Type',
+            value: selectedType,
+            onChange: setSelectedType,
+            allLabel: 'All Types',
+            options: typeOptions,
+        },
+        {
+            key: 'location',
+            label: 'Location',
+            value: selectedLocation,
+            onChange: setSelectedLocation,
+            allLabel: 'All Locations',
+            options: locationOptions,
+        },
+        ...(listingMode === LISTING_MODE.RENT && hasOptions(rentPriceOptions) ? [
+            {
+                key: 'min-rent',
+                label: 'Min Rent Price',
+                value: minRentPrice,
+                onChange: setMinRentPrice,
+                options: rentPriceOptions.map((price) => ({ value: price, label: formatKES(price) })),
+            },
+            {
+                key: 'max-rent',
+                label: 'Max Rent Price',
+                value: maxRentPrice,
+                onChange: setMaxRentPrice,
+                options: rentPriceOptions.map((price) => ({ value: price, label: formatKES(price) })),
+            },
+        ] : []),
+        ...(listingMode === LISTING_MODE.BUY && hasOptions(purchasePriceOptions) ? [
+            {
+                key: 'min-purchase',
+                label: 'Min Purchase Price',
+                value: minPurchasePrice,
+                onChange: setMinPurchasePrice,
+                options: purchasePriceOptions.map((price) => ({ value: price, label: formatKES(price) })),
+            },
+            {
+                key: 'max-purchase',
+                label: 'Max Purchase Price',
+                value: maxPurchasePrice,
+                onChange: setMaxPurchasePrice,
+                options: purchasePriceOptions.map((price) => ({ value: price, label: formatKES(price) })),
+            },
+        ] : []),
+        ...(hasOptions(floorSizeOptions) ? [
+            {
+                key: 'min-floor',
+                label: 'Min Floor Size (m²)',
+                value: minFloorSize,
+                onChange: setMinFloorSize,
+                options: floorSizeOptions.map((size) => ({ value: size, label: `${size} m²` })),
+            },
+            {
+                key: 'max-floor',
+                label: 'Max Floor Size (m²)',
+                value: maxFloorSize,
+                onChange: setMaxFloorSize,
+                options: floorSizeOptions.map((size) => ({ value: size, label: `${size} m²` })),
+            },
+        ] : []),
+        ...(hasOptions(landSizeOptions) ? [
+            {
+                key: 'min-land',
+                label: 'Min Land Size (m²)',
+                value: minLandSize,
+                onChange: setMinLandSize,
+                options: landSizeOptions.map((size) => ({ value: size, label: `${size} m²` })),
+            },
+            {
+                key: 'max-land',
+                label: 'Max Land Size (m²)',
+                value: maxLandSize,
+                onChange: setMaxLandSize,
+                options: landSizeOptions.map((size) => ({ value: size, label: `${size} m²` })),
+            },
+        ] : []),
+        ...(hasOptions(bedroomOptions) ? [
+            {
+                key: 'bedrooms',
+                label: 'Bedrooms',
+                value: minBedrooms,
+                onChange: setMinBedrooms,
+                options: bedroomOptions.map((value) => ({ value, label: formatBedroomOption(value) })),
+            },
+        ] : []),
+        ...(hasOptions(bathroomOptions) ? [
+            {
+                key: 'bathrooms',
+                label: 'Bathrooms',
+                value: minBathrooms,
+                onChange: setMinBathrooms,
+                options: bathroomOptions.map((value) => ({ value, label: formatBedroomOption(value) })),
+            },
+        ] : []),
+    ];
+
     const renderFilterControls = (isPanel = false) => (
         <div className={`property-filter-grid ${isPanel ? 'in-panel' : ''}`}>
+            {activeFilterControls.map((control) => (
             <label>
-                Property Type
-                <select value={selectedType} onChange={(event) => setSelectedType(event.target.value)}>
-                    <option value='all'>All Types</option>
-                    {typeOptions.map((typeOption) => (
-                        <option key={typeOption.value} value={typeOption.value}>{typeOption.label}</option>
+                {control.label}
+                <select value={control.value} onChange={(event) => control.onChange(event.target.value)}>
+                    <option value={control.allLabel ? 'all' : ''}>{control.allLabel || 'Any'}</option>
+                    {control.options.map((option) => (
+                        <option key={`${control.key}-${option.value}`} value={option.value}>{option.label}</option>
                     ))}
                 </select>
             </label>
-
-            <label>
-                Location
-                <select value={selectedLocation} onChange={(event) => setSelectedLocation(event.target.value)}>
-                    <option value='all'>All Locations</option>
-                    {locationOptions.map((locationOption) => (
-                        <option key={locationOption.value} value={locationOption.value}>{locationOption.label}</option>
-                    ))}
-                </select>
-            </label>
-
-            <label>
-                Min Rent Price
-                <select value={minRentPrice} onChange={(event) => setMinRentPrice(event.target.value)}>
-                    <option value=''>Any</option>
-                    {rentPriceOptions.map((price) => (
-                        <option key={`min-rent-${price}`} value={price}>{formatKES(price)}</option>
-                    ))}
-                </select>
-            </label>
-
-            <label>
-                Max Rent Price
-                <select value={maxRentPrice} onChange={(event) => setMaxRentPrice(event.target.value)}>
-                    <option value=''>Any</option>
-                    {rentPriceOptions.map((price) => (
-                        <option key={`max-rent-${price}`} value={price}>{formatKES(price)}</option>
-                    ))}
-                </select>
-            </label>
-
-            <label>
-                Min Purchase Price
-                <select value={minPurchasePrice} onChange={(event) => setMinPurchasePrice(event.target.value)}>
-                    <option value=''>Any</option>
-                    {purchasePriceOptions.map((price) => (
-                        <option key={`min-purchase-${price}`} value={price}>{formatKES(price)}</option>
-                    ))}
-                </select>
-            </label>
-
-            <label>
-                Max Purchase Price
-                <select value={maxPurchasePrice} onChange={(event) => setMaxPurchasePrice(event.target.value)}>
-                    <option value=''>Any</option>
-                    {purchasePriceOptions.map((price) => (
-                        <option key={`max-purchase-${price}`} value={price}>{formatKES(price)}</option>
-                    ))}
-                </select>
-            </label>
-
-            <label>
-                Min Floor Size (m²)
-                <select value={minFloorSize} onChange={(event) => setMinFloorSize(event.target.value)}>
-                    <option value=''>Any</option>
-                    {floorSizeOptions.map((size) => (
-                        <option key={`min-floor-${size}`} value={size}>{size} m²</option>
-                    ))}
-                </select>
-            </label>
-
-            <label>
-                Max Floor Size (m²)
-                <select value={maxFloorSize} onChange={(event) => setMaxFloorSize(event.target.value)}>
-                    <option value=''>Any</option>
-                    {floorSizeOptions.map((size) => (
-                        <option key={`max-floor-${size}`} value={size}>{size} m²</option>
-                    ))}
-                </select>
-            </label>
-
-            <label>
-                Min Land Size (m²)
-                <select value={minLandSize} onChange={(event) => setMinLandSize(event.target.value)}>
-                    <option value=''>Any</option>
-                    {landSizeOptions.map((size) => (
-                        <option key={`min-land-${size}`} value={size}>{size} m²</option>
-                    ))}
-                </select>
-            </label>
-
-            <label>
-                Max Land Size (m²)
-                <select value={maxLandSize} onChange={(event) => setMaxLandSize(event.target.value)}>
-                    <option value=''>Any</option>
-                    {landSizeOptions.map((size) => (
-                        <option key={`max-land-${size}`} value={size}>{size} m²</option>
-                    ))}
-                </select>
-            </label>
-
-            <label>
-                Bedrooms
-                <select value={minBedrooms} onChange={(event) => setMinBedrooms(event.target.value)}>
-                    <option value=''>Any</option>
-                    {bedroomOptions.map((value) => (
-                        <option key={`beds-${value}`} value={value}>{formatBedroomOption(value)}</option>
-                    ))}
-                </select>
-            </label>
-
-            <label>
-                Bathrooms
-                <select value={minBathrooms} onChange={(event) => setMinBathrooms(event.target.value)}>
-                    <option value=''>Any</option>
-                    {bathroomOptions.map((value) => (
-                        <option key={`baths-${value}`} value={value}>{formatBedroomOption(value)}</option>
-                    ))}
-                </select>
-            </label>
+            ))}
         </div>
     );
 
