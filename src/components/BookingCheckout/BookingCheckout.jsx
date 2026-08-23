@@ -78,6 +78,9 @@ const BookingCheckout = ({ property, onClose }) => {
     stripeEnabled: false,
     stripePublishableKey: '',
     mpesaEnabled: false,
+    mpesaConfigured: false,
+    mpesaDefaultPhone: '',
+    partnerPlan: null,
   });
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState('');
@@ -142,12 +145,22 @@ const BookingCheckout = ({ property, onClose }) => {
           stripeEnabled: Boolean(response.stripeEnabled),
           stripePublishableKey: response.stripePublishableKey || '',
           mpesaEnabled: Boolean(response.mpesaEnabled),
+          mpesaConfigured: Boolean(response.mpesaConfigured),
+          mpesaDefaultPhone: response.mpesaDefaultPhone || '',
+          partnerPlan: response.partnerPlan || null,
         });
 
         if (response.stripeEnabled) {
           setPaymentMethod('stripe');
         } else if (response.mpesaEnabled) {
           setPaymentMethod('mpesa');
+        }
+
+        if (response.mpesaEnabled && response.mpesaDefaultPhone) {
+          setForm((previous) => ({
+            ...previous,
+            phoneNumber: previous.phoneNumber || response.mpesaDefaultPhone,
+          }));
         }
       } catch {
         setMessage('Unable to load payment providers right now.');
@@ -444,6 +457,16 @@ const BookingCheckout = ({ property, onClose }) => {
               M-Pesa
             </label>
           </div>
+          {paymentMethod === 'mpesa' && config.partnerPlan && (
+            <p className='booking-message'>
+              Payment plan: {config.partnerPlan.partnerSharePercent}% partner allocation routed to {config.partnerPlan.partnerPhone}.
+            </p>
+          )}
+          {paymentMethod === 'mpesa' && !config.mpesaConfigured && (
+            <p className='booking-message'>
+              Live Daraja credentials are missing. This checkout currently runs in simulation mode.
+            </p>
+          )}
         </div>
 
         {message && <p className='booking-message'>{message}</p>}

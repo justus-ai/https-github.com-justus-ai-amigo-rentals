@@ -105,6 +105,8 @@ db.exec(`
     type TEXT NOT NULL,
     title TEXT NOT NULL,
     location TEXT,
+    lat REAL,
+    lng REAL,
     price REAL NOT NULL DEFAULT 0,
     bedrooms INTEGER NOT NULL DEFAULT 0,
     bathrooms INTEGER NOT NULL DEFAULT 0,
@@ -169,6 +171,11 @@ const propertyColumns = db.prepare('PRAGMA table_info(properties)').all();
 if (!propertyColumns.some((column) => column.name === 'images')) {
   db.prepare('ALTER TABLE properties ADD COLUMN images TEXT').run();
 }
+if (!propertyColumns.some((column) => column.name === 'lat')) {
+  db.prepare('ALTER TABLE properties ADD COLUMN lat REAL').run();
+}
+if (!propertyColumns.some((column) => column.name === 'lng')) {
+  db.prepare('ALTER TABLE properties ADD COLUMN lng REAL').run();
 if (!propertyColumns.some((column) => column.name === 'land_size')) {
   db.prepare('ALTER TABLE properties ADD COLUMN land_size REAL').run();
 }
@@ -198,6 +205,8 @@ if (propertyCount === 0) {
       type: 'Apartment',
       title: 'Modern Apartment',
       location: 'Downtown',
+      lat: -1.2864,
+      lng: 36.8172,
       price: 120000,
       bedrooms: 2,
       bathrooms: 1,
@@ -211,6 +220,8 @@ if (propertyCount === 0) {
       type: 'Maisonette',
       title: 'Cozy Maisonette',
       location: 'Suburbs',
+      lat: -1.2678,
+      lng: 36.8028,
       price: 90000,
       bedrooms: 3,
       bathrooms: 2,
@@ -223,6 +234,8 @@ if (propertyCount === 0) {
   ];
 
   const insertProperty = db.prepare(`
+    INSERT INTO properties (type, title, location, lat, lng, price, bedrooms, bathrooms, area, image, images, description, available, created_at, updated_at)
+    VALUES (@type, @title, @location, @lat, @lng, @price, @bedrooms, @bathrooms, @area, @image, @images, @description, @available, @created_at, @updated_at)
     INSERT INTO properties (type, title, location, price, bedrooms, bathrooms, area, land_size, purchase_price, image, images, description, available, created_at, updated_at)
     VALUES (@type, @title, @location, @price, @bedrooms, @bathrooms, @area, @land_size, @purchase_price, @image, @images, @description, @available, @created_at, @updated_at)
   `);
@@ -314,6 +327,13 @@ const mpesaConsumerSecret = process.env.MPESA_CONSUMER_SECRET || '';
 const mpesaShortcode = process.env.MPESA_SHORTCODE || '';
 const mpesaPasskey = process.env.MPESA_PASSKEY || '';
 const mpesaCallbackUrl = process.env.MPESA_CALLBACK_URL || `${appBaseUrl}/api/payments/mpesa/callback`;
+const mpesaFeatureEnabled = String(process.env.MPESA_ENABLED || 'true').toLowerCase() !== 'false';
+
+const rawPartnerSharePercent = Number(process.env.PARTNER_SHARE_PERCENT || 10);
+const partnerSharePercent = Number.isFinite(rawPartnerSharePercent)
+  ? Math.min(100, Math.max(0, rawPartnerSharePercent))
+  : 10;
+const partnerPayoutPhoneRaw = process.env.PARTNER_PAYOUT_PHONE || '0722893207';
 
 const mpesaBaseUrl =
   mpesaEnv === 'production'
@@ -402,6 +422,19 @@ const normalizeMpesaPhone = (phone) => {
   }
 
   return digits;
+};
+
+const computePartnerPlan = (amount) => {
+  const normalizedAmount = Math.max(0, asNumber(amount));
+  const partnerShareAmount = Math.round((normalizedAmount * partnerSharePercent) / 100);
+  const businessShareAmount = Math.max(0, Math.round(normalizedAmount - partnerShareAmount));
+
+  return {
+    partnerSharePercent,
+    partnerShareAmount,
+    businessShareAmount,
+    partnerPhone: normalizeMpesaPhone(partnerPayoutPhoneRaw),
+  };
 };
 
 const BOOKING_STATUS = {
@@ -644,10 +677,15 @@ const normalizePropertyInput = (input = {}) => {
     normalizedImages.push(String(input.image).trim());
   }
 
+  const parsedLat = input.lat !== undefined && input.lat !== '' ? Number(input.lat) : null;
+  const parsedLng = input.lng !== undefined && input.lng !== '' ? Number(input.lng) : null;
+
   return {
     type: String(input.type || '').trim(),
     title: String(input.title || '').trim(),
     location: String(input.location || '').trim(),
+    lat: parsedLat !== null && Number.isFinite(parsedLat) ? parsedLat : null,
+    lng: parsedLng !== null && Number.isFinite(parsedLng) ? parsedLng : null,
     price: asNumber(input.price),
     bedrooms: asNumber(input.bedrooms),
     bathrooms: asNumber(input.bathrooms),
@@ -755,6 +793,7 @@ app.get('/ready', (_req, res) => {
 
 app.get('/api/properties', (_req, res) => {
   const rows = db
+    .prepare('SELECT id, type, title, location, lat, lng, price, bedrooms, bathrooms, area, image, images, description, available FROM properties ORDER BY id DESC')
     .prepare('SELECT id, type, title, location, price, bedrooms, bathrooms, area, land_size, purchase_price, image, images, description, available FROM properties ORDER BY id DESC')
     .all();
   res.json({ properties: rows.map(formatProperty) });
@@ -825,6 +864,8 @@ app.post('/api/properties', requireAuth, (req, res) => {
   const insertResult = db
     .prepare(
       `
+        INSERT INTO properties (type, title, location, lat, lng, price, bedrooms, bathrooms, area, image, images, description, available, created_at, updated_at)
+        VALUES (@type, @title, @location, @lat, @lng, @price, @bedrooms, @bathrooms, @area, @image, @images, @description, @available, @created_at, @updated_at)
         INSERT INTO properties (type, title, location, price, bedrooms, bathrooms, area, land_size, purchase_price, image, images, description, available, created_at, updated_at)
         VALUES (@type, @title, @location, @price, @bedrooms, @bathrooms, @area, @land_size, @purchase_price, @image, @images, @description, @available, @created_at, @updated_at)
       `
@@ -832,6 +873,7 @@ app.post('/api/properties', requireAuth, (req, res) => {
     .run({ ...property, created_at: now, updated_at: now });
 
   const created = db
+    .prepare('SELECT id, type, title, location, lat, lng, price, bedrooms, bathrooms, area, image, images, description, available FROM properties WHERE id = ?')
     .prepare('SELECT id, type, title, location, price, bedrooms, bathrooms, area, land_size, purchase_price, image, images, description, available FROM properties WHERE id = ?')
     .get(insertResult.lastInsertRowid);
   res.status(201).json({ property: formatProperty(created) });
@@ -856,6 +898,8 @@ app.put('/api/properties/:id', requireAuth, (req, res) => {
   db.prepare(
     `
       UPDATE properties
+      SET type=@type, title=@title, location=@location, lat=@lat, lng=@lng, price=@price, bedrooms=@bedrooms, bathrooms=@bathrooms,
+          area=@area, image=@image, images=@images, description=@description, available=@available, updated_at=@updated_at
       SET type=@type, title=@title, location=@location, price=@price, bedrooms=@bedrooms, bathrooms=@bathrooms,
           area=@area, land_size=@land_size, purchase_price=@purchase_price, image=@image, images=@images, description=@description, available=@available, updated_at=@updated_at
       WHERE id=@id
@@ -863,6 +907,7 @@ app.put('/api/properties/:id', requireAuth, (req, res) => {
   ).run({ ...property, updated_at: Date.now(), id: propertyId });
 
   const updated = db
+    .prepare('SELECT id, type, title, location, lat, lng, price, bedrooms, bathrooms, area, image, images, description, available FROM properties WHERE id = ?')
     .prepare('SELECT id, type, title, location, price, bedrooms, bathrooms, area, land_size, purchase_price, image, images, description, available FROM properties WHERE id = ?')
     .get(propertyId);
   res.json({ property: formatProperty(updated) });
@@ -1042,10 +1087,21 @@ app.delete('/api/admins/:username', requireAuth, requireSuperAdmin, (req, res) =
 });
 
 app.get('/api/payments/config', (_req, res) => {
+  const siteContent = db
+    .prepare('SELECT contact_phone FROM site_content WHERE id = 1')
+    .get();
+  const defaultCustomerPhone = normalizeMpesaPhone(siteContent?.contact_phone || defaultSiteContent.contact_phone);
+
   res.json({
     stripeEnabled: Boolean(stripeClient && stripePublishableKey),
     stripePublishableKey,
-    mpesaEnabled: isMpesaConfigured,
+    mpesaEnabled: mpesaFeatureEnabled,
+    mpesaConfigured: isMpesaConfigured,
+    mpesaDefaultPhone: defaultCustomerPhone,
+    partnerPlan: {
+      partnerPhone: normalizeMpesaPhone(partnerPayoutPhoneRaw),
+      partnerSharePercent,
+    },
   });
 });
 
@@ -1302,12 +1358,20 @@ app.post('/api/payments/stripe/checkout-session', async (req, res) => {
     });
 
     const now = Date.now();
+    const partnerPlan = computePartnerPlan(booking.amount);
     db.prepare(
       `
         INSERT INTO payments (booking_id, provider, external_id, status, amount, currency, metadata, created_at, updated_at)
         VALUES (?, 'stripe', ?, 'pending', ?, 'KES', ?, ?, ?)
       `
-    ).run(booking.id, session.id, booking.amount, JSON.stringify({ checkoutSession: session.id }), now, now);
+    ).run(
+      booking.id,
+      session.id,
+      booking.amount,
+      JSON.stringify({ checkoutSession: session.id, partnerPlan }),
+      now,
+      now
+    );
 
     res.json({ sessionId: session.id });
   } catch (error) {
@@ -1448,6 +1512,10 @@ app.post('/api/payments/mpesa/stk-push', async (req, res) => {
     return res.status(400).json({ error: 'Booking id and phone number are required.' });
   }
 
+  if (!mpesaFeatureEnabled) {
+    return res.status(400).json({ error: 'M-Pesa is currently disabled.' });
+  }
+
   const booking = db.prepare('SELECT id, amount, status FROM bookings WHERE id = ?').get(bookingId);
   if (!booking) {
     return res.status(404).json({ error: 'Booking not found.' });
@@ -1467,6 +1535,7 @@ app.post('/api/payments/mpesa/stk-push', async (req, res) => {
   }
 
   const now = Date.now();
+  const partnerPlan = computePartnerPlan(booking.amount);
 
   if (!isMpesaConfigured) {
     const checkoutRequestId = `SIMULATED-${bookingId}-${now}`;
@@ -1475,7 +1544,14 @@ app.post('/api/payments/mpesa/stk-push', async (req, res) => {
         INSERT INTO payments (booking_id, provider, external_id, status, amount, currency, metadata, created_at, updated_at)
         VALUES (?, 'mpesa', ?, 'pending', ?, 'KES', ?, ?, ?)
       `
-    ).run(bookingId, checkoutRequestId, booking.amount, JSON.stringify({ simulated: true }), now, now);
+    ).run(
+      bookingId,
+      checkoutRequestId,
+      booking.amount,
+      JSON.stringify({ simulated: true, partnerPlan }),
+      now,
+      now
+    );
 
     return res.json({
       checkoutRequestId,
@@ -1524,7 +1600,7 @@ app.post('/api/payments/mpesa/stk-push', async (req, res) => {
       bookingId,
       payload.CheckoutRequestID,
       booking.amount,
-      JSON.stringify({ merchantRequestId: payload.MerchantRequestID }),
+      JSON.stringify({ merchantRequestId: payload.MerchantRequestID, partnerPlan }),
       now,
       now
     );
@@ -1585,6 +1661,7 @@ app.get('/api/admin/reconciliation', requireAuth, (req, res) => {
           py.provider AS payment_provider,
           py.status AS payment_status,
           py.external_id AS payment_reference,
+          py.metadata AS payment_metadata,
           py.updated_at AS payment_updated_at
         FROM bookings b
         JOIN properties p ON p.id = b.property_id
@@ -1601,7 +1678,22 @@ app.get('/api/admin/reconciliation', requireAuth, (req, res) => {
     )
     .all();
 
-  res.json({ items });
+  const normalizedItems = items.map((item) => {
+    const metadata = parseJsonObject(item.payment_metadata);
+    const partnerPlan =
+      metadata && typeof metadata.partnerPlan === 'object' && !Array.isArray(metadata.partnerPlan)
+        ? metadata.partnerPlan
+        : null;
+
+    return {
+      ...item,
+      partner_share_percent: partnerPlan?.partnerSharePercent ?? null,
+      partner_share_amount: partnerPlan?.partnerShareAmount ?? null,
+      partner_share_phone: partnerPlan?.partnerPhone ?? null,
+    };
+  });
+
+  res.json({ items: normalizedItems });
 });
 
 app.post('/api/payments/refund', requireAuth, async (req, res) => {
